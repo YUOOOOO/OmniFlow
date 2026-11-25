@@ -1,40 +1,40 @@
 <template>
-  <div
-    ref="canvasRef"
-    class="infinite-canvas"
-    @wheel.prevent="onWheel"
-    @mousedown="onPanStart"
-  >
-    <div
-      class="canvas-content"
-      :style="canvasTransform"
+  <div class="infinite-canvas">
+    <VueFlow
+      v-model="elements"
+      :min-zoom="0.2"
+      :max-zoom="8"
+      :snap-to-grid="true"
+      :snap-grid="[20, 20]"
+      :default-viewport="{ x: 0, y: 0, zoom: 1 }"
+      :pan-on-scroll="true"
+      :zoom-on-pinch="true"
+      :zoom-on-scroll="true"
+      :zoom-on-double-click="false"
+      @pane-ready="onPaneReady"
     >
-      <!-- 网格背景 -->
-      <div v-if="canvasStore.grid.enabled" class="canvas-grid" />
-
-      <!-- 面板列表 -->
-      <Panel
-        v-for="panel in panelStore.panels"
-        :key="panel.id"
-        v-bind="panel"
+      <!-- 背景网格 -->
+      <Background
+        :pattern-color="'var(--border-subtle)'"
+        :gap="20"
+        variant="dots"
       />
-    </div>
 
-    <!-- 画布控制器 -->
-    <div class="canvas-controls">
-      <button class="control-btn" @click="canvasStore.resetTransform" title="重置视图">
-        <PhHouse :size="16" weight="duotone" />
-      </button>
-      <button class="control-btn" @click="canvasStore.toggleGrid" title="切换网格">
-        <PhGridFour :size="16" weight="duotone" />
-      </button>
-      <div class="zoom-display">
-        {{ Math.round(canvasStore.transform.zoom * 100) }}%
-      </div>
-    </div>
+      <!-- 控制器 -->
+      <Controls
+        :show-zoom="true"
+        :show-fit-view="true"
+        :show-interactive="false"
+      />
+
+      <!-- 自定义节点 -->
+      <template #node-panel="nodeProps">
+        <PanelNode v-bind="nodeProps" />
+      </template>
+    </VueFlow>
 
     <!-- 空状态提示 -->
-    <div v-if="panelStore.panels.length === 0" class="empty-state">
+    <div v-if="elements.length === 0" class="empty-state">
       <PhSquaresFour :size="64" weight="duotone" class="empty-icon" />
       <h3>画布是空的</h3>
       <p>点击右下角的 + 按钮添加面板</p>
@@ -43,143 +43,97 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { 
-  PhHouse, 
-  PhGridFour,
-  PhSquaresFour
-} from '@phosphor-icons/vue';
-import { useCanvasStore } from '@/stores/canvas';
+import { ref, computed, watch } from 'vue';
+import { VueFlow, useVueFlow } from '@vue-flow/core';
+import { Background } from '@vue-flow/background';
+import { Controls } from '@vue-flow/controls';
+import { PhSquaresFour } from '@phosphor-icons/vue';
 import { usePanelStore } from '@/stores/panels';
-import Panel from '@/components/Panels/Panel.vue';
+import PanelNode from './PanelNode.vue';
 
-const canvasStore = useCanvasStore();
+// 导入样式
+import '@vue-flow/core/dist/style.css';
+import '@vue-flow/core/dist/theme-default.css';
+import '@vue-flow/controls/dist/style.css';
+
 const panelStore = usePanelStore();
-const canvasRef = ref<HTMLElement>();
+const { fitView } = useVueFlow();
 
-const canvasTransform = computed(() => ({
-  transform: `translate(${canvasStore.transform.offset.x}px, ${canvasStore.transform.offset.y}px) scale(${canvasStore.transform.zoom})`,
-  transformOrigin: '0 0'
-}));
-
-function onWheel(e: WheelEvent) {
-  const delta = e.deltaY > 0 ? -0.1 : 0.1;
-  const rect = canvasRef.value?.getBoundingClientRect();
-  
-  if (rect) {
-    const center = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    };
-    canvasStore.zoom(delta, center);
+// 将面板转换为 Vue Flow 节点
+const elements = computed({
+  get() {
+    return panelStore.panels.map(panel => ({
+      id: panel.id,
+      type: 'panel',
+      position: panel.position,
+      data: panel,
+      style: {
+        width: `${panel.size.w}px`,
+        height: `${panel.size.h}px`,
+      }
+    }));
+  },
+  set(nodes: any[]) {
+    // 更新面板位置
+    nodes.forEach(node => {
+      const panel = panelStore.panels.find(p => p.id === node.id);
+      if (panel && node.position) {
+        panel.position = node.position;
+      }
+    });
   }
+});
+
+function onPaneReady() {
+  // 画布准备完成
+  console.log('Canvas ready');
 }
 
-function onPanStart(e: MouseEvent) {
-  if (e.target !== canvasRef.value && !(e.target as HTMLElement).classList.contains('canvas-content')) {
-    return;
+// 监听面板变化，自动适应视图
+watch(() => panelStore.panels.length, () => {
+  if (panelStore.panels.length > 0) {
+    setTimeout(() => fitView({ padding: 0.2 }), 100);
   }
-
-  const startX = e.clientX;
-  const startY = e.clientY;
-  const startOffset = { ...canvasStore.transform.offset };
-
-  function onMouseMove(e: MouseEvent) {
-    const deltaX = e.clientX - startX;
-    const deltaY = e.clientY - startY;
-    
-    canvasStore.transform.offset.x = startOffset.x + deltaX;
-    canvasStore.transform.offset.y = startOffset.y + deltaY;
-  }
-
-  function onMouseUp() {
-    document.removeEventListener('mousemove', onMouseMove);
-    document.removeEventListener('mouseup', onMouseUp);
-  }
-
-  document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mouseup', onMouseUp);
-}
+});
 </script>
 
-<style scoped>
-.infinite-canvas {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: var(--canvas-bg);
-  cursor: grab;
+<style>
+/* Vue Flow 全局样式覆盖 */
+.vue-flow {
+  background: var(--surface-0);
 }
 
-.infinite-canvas:active {
-  cursor: grabbing;
+.vue-flow__node {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 
-.canvas-content {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  transition: transform 0.05s ease-out;
-}
-
-/* 网格背景（点状） */
-.canvas-grid {
-  position: absolute;
-  top: -5000px;
-  left: -5000px;
-  width: 10000px;
-  height: 10000px;
-  background-image: radial-gradient(
-    circle,
-    var(--grid-dot) 1px,
-    transparent 1px
-  );
-  background-size: 20px 20px;
-  pointer-events: none;
-}
-
-/* 控制器 */
-.canvas-controls {
-  position: absolute;
+.vue-flow__controls {
+  left: 20px;
   bottom: 20px;
-  right: 20px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  background: var(--surface-2);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-.control-btn {
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: transparent;
+.vue-flow__controls-button {
+  background: var(--surface-1);
+  border-color: var(--border-subtle);
   color: var(--text-secondary);
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 150ms ease-out;
 }
 
-.control-btn:hover {
+.vue-flow__controls-button:hover {
   background: var(--surface-hover);
+  border-color: var(--border-strong);
   color: var(--text-primary);
 }
+</style>
 
-.zoom-display {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  min-width: 45px;
-  text-align: center;
-  padding: 0 4px;
+<style scoped>
+.infinite-canvas {
+  width: 100%;
+  height: 100%;
+  position: relative;
 }
 
 /* 空状态 */
@@ -190,6 +144,7 @@ function onPanStart(e: MouseEvent) {
   transform: translate(-50%, -50%);
   text-align: center;
   pointer-events: none;
+  z-index: 1;
 }
 
 .empty-icon {
