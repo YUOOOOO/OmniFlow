@@ -135,6 +135,10 @@ const isRunning = computed(() => agentStore.isRunning);
 const conversationTitle = computed(() => agentStore.activeConversation?.title ?? '新对话');
 const canSend = computed(() => inputText.value.trim().length > 0 && !isRunning.value);
 
+function newConversation() {
+  agentStore.newConversation();
+}
+
 async function sendMessage() {
   if (!canSend.value) return;
 
@@ -155,7 +159,8 @@ async function sendMessage() {
   });
 
   try {
-    for await (const event of agentService.streamMessage(text)) {
+    // 使用模拟模式（TODO: 配置真实 API）
+    for await (const event of agentService.streamMessageMock(text)) {
       agentStore.handleEvent(event);
       
       if (event.type === 'token') {

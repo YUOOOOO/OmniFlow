@@ -1,212 +1,146 @@
-import type {
-  AgentConfig,
-  AgentMessage,
-  AgentResponse,
-  StreamEvent,
-  ToolDefinition,
-  ToolCall
-} from './types';
-import { mcpManager } from '@/core/mcp/MCPManager';
+import type { AgentEvent } from '@/types/agent';
 
 /**
- * Agent 服务
- * 负责与 AI 模型交互，支持工具调用和流式响应
+ * Agent 服务 - 处理 AI 对话
  */
-export class AgentService {
-  private config: AgentConfig;
-  private messages: AgentMessage[] = [];
-
-  constructor(config: AgentConfig) {
-    this.config = config;
-  }
+class AgentService {
+  private apiKey: string = '';
+  private apiUrl: string = 'https://api.openai.com/v1/chat/completions';
 
   /**
-   * 发送消息（非流式）
+   * 配置 API
    */
-  async sendMessage(userMessage: string): Promise<AgentResponse> {
-    const message: AgentMessage = {
-      id: `msg-${Date.now()}`,
-      role: 'user',
-      content: userMessage,
-      timestamp: Date.now()
-    };
-
-    this.messages.push(message);
-
-    // 获取可用工具
-    const tools = this.getAvailableTools();
-
-    try {
-      // 调用 AI API
-      const response = await this.callAI(this.messages, tools);
-      
-      this.messages.push(response.message);
-
-      // 如果有工具调用，执行工具
-      if (response.toolCalls && response.toolCalls.length > 0) {
-        await this.executeTools(response.toolCalls);
-        // 递归调用，让 AI 看到工具结果
-        return await this.sendMessage('');
-      }
-
-      return response;
-    } catch (error) {
-      throw new Error(`Agent error: ${(error as Error).message}`);
-    }
+  configure(config: { apiKey?: string; apiUrl?: string }) {
+    if (config.apiKey) this.apiKey = config.apiKey;
+    if (config.apiUrl) this.apiUrl = config.apiUrl;
   }
 
   /**
    * 流式发送消息
    */
-  async *streamMessage(userMessage: string): AsyncGenerator<StreamEvent> {
-    const message: AgentMessage = {
-      id: `msg-${Date.now()}`,
-      role: 'user',
-      content: userMessage,
-      timestamp: Date.now()
-    };
+  async *streamMessage(prompt: string): AsyncGenerator<AgentEvent> {
+    // 检查配置
+    if (!this.apiKey) {
+      yield { type: 'error', error: '请先配置 API Key' };
+      return;
+    }
 
-    this.messages.push(message);
-
-    yield { type: 'start' };
-
-    const tools = this.getAvailableTools();
+    const runId = `run-${Date.now()}`;
+    yield { type: 'start', runId };
 
     try {
-      // 模拟流式响应
-      const response = await this.callAI(this.messages, tools);
-      
-      // 逐字输出
-      const text = typeof response.message.content === 'string' 
-        ? response.message.content 
-        : '';
-      
-      for (const char of text) {
-        yield { type: 'token', token: char };
-        await new Promise(resolve => setTimeout(resolve, 20));
+      const response = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4',
+          messages: [
+            {
+              role: 'system',
+              content: '你是 OmniFlow 的 AI 助手，可以帮助用户管理画布、调用工具、执行命令。'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          stream: true,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        yield { type: 'error', error: `API 错误: ${error}` };
+        return;
       }
 
-      this.messages.push(response.message);
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
 
-      yield { type: 'done', message: response.message };
+      if (!reader) {
+        yield { type: 'error', error: '无法读取响应流' };
+        return;
+      }
+
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim() || line === 'data: [DONE]') continue;
+          
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              const delta = data.choices?.[0]?.delta;
+              
+              if (delta?.content) {
+                yield { type: 'token', token: delta.content };
+              }
+            } catch (e) {
+              console.error('解析流式响应失败:', e);
+            }
+          }
+        }
+      }
+
+      yield { 
+        type: 'done', 
+        message: {
+          id: `msg-${Date.now()}`,
+          role: 'assistant',
+          content: '', // 内容已经通过 token 事件发送
+          timestamp: Date.now()
+        }
+      };
+
     } catch (error) {
-      yield { type: 'error', error: (error as Error).message };
+      yield { 
+        type: 'error', 
+        error: error instanceof Error ? error.message : '未知错误' 
+      };
     }
   }
 
   /**
-   * 调用 AI API
+   * 模拟模式（测试用）
    */
-  private async callAI(
-    messages: AgentMessage[],
-    tools: ToolDefinition[]
-  ): Promise<AgentResponse> {
-    // TODO: 实际调用 AI API（OpenAI/Anthropic/Ollama）
-    // 这里先返回模拟响应
-    
-    await new Promise(resolve => setTimeout(resolve, 1000));
+  async *streamMessageMock(prompt: string): AsyncGenerator<AgentEvent> {
+    const runId = `run-${Date.now()}`;
+    yield { type: 'start', runId };
 
-    const lastMessage = messages[messages.length - 1];
-    const userText = typeof lastMessage.content === 'string' 
-      ? lastMessage.content 
-      : '';
+    // 模拟延迟
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    // 简单的规则响应
-    let responseText = '';
-    
-    if (userText.includes('画布') || userText.includes('canvas')) {
-      responseText = '好的！我可以帮你创建一个新的画布。画布已经准备好了，你可以在上面添加各种面板。';
-    } else if (userText.includes('Terminal') || userText.includes('终端')) {
-      responseText = '我来帮你添加一个 Terminal 面板。你可以在里面执行命令。';
-    } else if (userText.includes('MCP') || userText.includes('工具')) {
-      responseText = `我现在可以使用 ${tools.length} 个 MCP 工具，包括文件读写、命令执行等功能。`;
-    } else {
-      responseText = '收到！我是 OmniFlow 的 AI 助手。我可以帮你管理画布、调用工具、执行命令。有什么我可以帮你的吗？';
+    // 模拟响应
+    const response = `收到你的消息："${prompt}"\n\n我是 OmniFlow Agent，目前处于测试模式。请配置 OpenAI API Key 以启用真实对话功能。\n\n你可以让我：\n- 创建和管理画布\n- 添加各种面板\n- 配置 MCP Server\n- 执行命令和操作`;
+
+    // 逐字输出
+    for (const char of response) {
+      yield { type: 'token', token: char };
+      await new Promise(resolve => setTimeout(resolve, 20));
     }
 
-    const responseMessage: AgentMessage = {
-      id: `msg-${Date.now()}`,
-      role: 'assistant',
-      content: responseText,
-      timestamp: Date.now()
-    };
-
-    return {
-      message: responseMessage,
-      usage: {
-        promptTokens: 100,
-        completionTokens: 50,
-        totalTokens: 150
-      }
-    };
-  }
-
-  /**
-   * 获取可用工具
-   */
-  private getAvailableTools(): ToolDefinition[] {
-    const mcpTools = mcpManager.getAllTools();
-    
-    return mcpTools.map(({ serverId, tool }) => ({
-      name: `${serverId}_${tool.name}`,
-      description: tool.description,
-      parameters: {
-        type: 'object' as const,
-        properties: tool.inputSchema.properties,
-        required: tool.inputSchema.required
-      }
-    }));
-  }
-
-  /**
-   * 执行工具调用
-   */
-  private async executeTools(toolCalls: ToolCall[]): Promise<void> {
-    for (const call of toolCalls) {
-      const [serverId, toolName] = call.function.name.split('_');
-      const args = JSON.parse(call.function.arguments);
-      
-      const result = await mcpManager.callTool(serverId, {
-        name: toolName,
-        arguments: args
-      });
-
-      // 将结果添加到消息历史
-      this.messages.push({
-        id: `tool-${Date.now()}`,
-        role: 'function',
-        content: JSON.stringify(result),
+    yield { 
+      type: 'done', 
+      message: {
+        id: `msg-${Date.now()}`,
+        role: 'assistant',
+        content: response,
         timestamp: Date.now()
-      });
-    }
-  }
-
-  /**
-   * 清除消息历史
-   */
-  clearHistory(): void {
-    this.messages = [];
-  }
-
-  /**
-   * 获取消息历史
-   */
-  getHistory(): AgentMessage[] {
-    return [...this.messages];
-  }
-
-  /**
-   * 更新配置
-   */
-  updateConfig(config: Partial<AgentConfig>): void {
-    this.config = { ...this.config, ...config };
+      }
+    };
   }
 }
 
-// 默认实例
-export const agentService = new AgentService({
-  provider: 'openai',
-  model: 'gpt-4',
-  temperature: 0.7,
-  maxTokens: 2000
-});
+export const agentService = new AgentService();
