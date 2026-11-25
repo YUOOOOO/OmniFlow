@@ -7,7 +7,6 @@
       class="chat-trigger"
       :class="{ dragging: triggerDrag.isDragging.value }"
       :style="triggerStyle"
-      @click="toggleChat"
       @mousedown="onTriggerDragStart"
     >
       <PhChats :size="24" weight="duotone" />
@@ -139,35 +138,50 @@ const triggerStyle = computed(() => ({
   cursor: triggerDrag.isDragging.value ? 'grabbing' : 'grab'
 }));
 
-const windowStyle = computed(() => ({
-  transform: `translate(${windowDrag.position.value.x}px, ${windowDrag.position.value.y}px)`,
-  cursor: windowDrag.isDragging.value ? 'move' : 'default'
-}));
+const windowStyle = computed(() => {
+  // 窗口位置跟随悬浮按钮
+  const baseX = triggerDrag.position.value.x;
+  const baseY = triggerDrag.position.value.y;
+  const offsetX = windowDrag.position.value.x;
+  const offsetY = windowDrag.position.value.y;
+  
+  return {
+    transform: `translate(${baseX + offsetX}px, ${baseY + offsetY}px)`,
+    cursor: windowDrag.isDragging.value ? 'move' : 'default'
+  };
+});
 
 function onTriggerDragStart(e: MouseEvent) {
-  // 检测是否是拖拽还是点击
+  e.preventDefault();
+  
   const startX = e.clientX;
   const startY = e.clientY;
   let hasMoved = false;
+  let isDragging = false;
 
   function onMouseMove(e: MouseEvent) {
     const deltaX = Math.abs(e.clientX - startX);
     const deltaY = Math.abs(e.clientY - startY);
     
-    if (deltaX > 5 || deltaY > 5) {
+    // 移动超过 5px 才算拖拽
+    if (!isDragging && (deltaX > 5 || deltaY > 5)) {
+      isDragging = true;
       hasMoved = true;
+      e.preventDefault();
+    }
+    
+    if (isDragging) {
       triggerDrag.startDrag(e);
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
     }
   }
 
-  function onMouseUp() {
+  function onMouseUp(e: MouseEvent) {
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
     
     // 如果没有移动，则是点击
     if (!hasMoved) {
+      e.stopPropagation();
       toggleChat();
     }
   }
