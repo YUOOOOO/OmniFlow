@@ -129,9 +129,33 @@ const inputRef = ref<HTMLTextAreaElement>();
 const triggerRef = ref<HTMLElement>();
 const windowRef = ref<HTMLElement>();
 
+// 从 localStorage 加载位置
+const savedTriggerPos = localStorage.getItem('omniflow-chat-trigger-pos');
+const savedWindowPos = localStorage.getItem('omniflow-chat-window-pos');
+
 // 拖拽功能
 const triggerDrag = useDraggable(triggerRef);
 const windowDrag = useWindowDrag();
+
+// 恢复保存的位置
+if (savedTriggerPos) {
+  const pos = JSON.parse(savedTriggerPos);
+  triggerDrag.position.value = pos;
+}
+
+if (savedWindowPos) {
+  const pos = JSON.parse(savedWindowPos);
+  windowDrag.position.value = pos;
+}
+
+// 监听位置变化，保存到 localStorage
+watch(() => triggerDrag.position.value, (pos) => {
+  localStorage.setItem('omniflow-chat-trigger-pos', JSON.stringify(pos));
+}, { deep: true });
+
+watch(() => windowDrag.position.value, (pos) => {
+  localStorage.setItem('omniflow-chat-window-pos', JSON.stringify(pos));
+}, { deep: true });
 
 const triggerStyle = computed(() => ({
   transform: `translate(${triggerDrag.position.value.x}px, ${triggerDrag.position.value.y}px)`,

@@ -1,37 +1,10 @@
 <template>
   <div class="omniflow-app">
-    <!-- 顶部标签栏 -->
-    <header class="top-tabs">
-      <nav class="tabs-nav">
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          class="tab-item"
-          :class="{ active: currentView === tab.id }"
-          @click="currentView = tab.id"
-        >
-          <component :is="tab.icon" :size="18" weight="duotone" />
-          <span>{{ tab.label }}</span>
-        </button>
-      </nav>
-    </header>
-
-    <!-- 主内容区域 -->
-    <main class="main-content">
-      <!-- 画布视图 -->
-      <InfiniteCanvas v-if="currentView === 'canvas'" />
-
-      <!-- 文件视图 -->
-      <FileExplorer v-else-if="currentView === 'files'" />
-    </main>
+    <!-- 主画布（全屏） -->
+    <InfiniteCanvas />
 
     <!-- 画布快速添加按钮 -->
-    <button
-      v-if="currentView === 'canvas'"
-      class="fab"
-      @click="addPanel"
-      title="添加面板"
-    >
+    <button class="fab" @click="addPanel" title="添加面板">
       <PhPlus :size="24" weight="bold" />
     </button>
 
@@ -41,26 +14,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { 
-  PhSquaresFour, 
-  PhFiles,
-  PhPlus
-} from '@phosphor-icons/vue';
+import { PhPlus } from '@phosphor-icons/vue';
 import InfiniteCanvas from '@/components/Canvas/InfiniteCanvas.vue';
-import FileExplorer from '@/components/Files/FileExplorer.vue';
 import FloatingChat from '@/components/Chat/FloatingChat.vue';
 import { usePanelStore } from '@/stores/panels';
 
-type ViewType = 'canvas' | 'files';
-
-const currentView = ref<ViewType>('canvas');
 const panelStore = usePanelStore();
-
-const tabs = [
-  { id: 'canvas', icon: PhSquaresFour, label: '画布' },
-  { id: 'files', icon: PhFiles, label: '文件' }
-];
 
 function addPanel() {
   panelStore.addPanel({
@@ -75,69 +34,9 @@ function addPanel() {
 
 <style scoped>
 .omniflow-app {
-  display: flex;
-  flex-direction: column;
   width: 100vw;
   height: 100vh;
   background: var(--surface-0);
-}
-
-/* 顶部标签栏 */
-.top-tabs {
-  height: 48px;
-  background: var(--surface-1);
-  border-bottom: 1px solid var(--border-subtle);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.tabs-nav {
-  display: flex;
-  gap: 4px;
-  padding: 0 12px;
-}
-
-.tab-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: all 150ms ease-out;
-  position: relative;
-}
-
-.tab-item:hover {
-  background: var(--surface-hover);
-  color: var(--text-primary);
-}
-
-.tab-item.active {
-  background: var(--surface-3);
-  color: var(--focus-blue);
-}
-
-.tab-item.active::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--focus-blue);
-}
-
-/* 主内容区域 */
-.main-content {
-  flex: 1;
   position: relative;
   overflow: hidden;
 }
