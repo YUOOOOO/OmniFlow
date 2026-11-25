@@ -192,10 +192,8 @@ function onTriggerDragStart(e: MouseEvent) {
       isDragging = true;
       hasMoved = true;
       e.preventDefault();
-    }
-    
-    if (isDragging) {
-      triggerDrag.startDrag(e);
+      // 开始拖拽，传入起始坐标
+      triggerDrag.startDrag(e, startX, startY);
     }
   }
 
@@ -218,8 +216,55 @@ function toggleChat() {
   isOpen.value = !isOpen.value;
   if (isOpen.value) {
     hasUnread.value = false;
+    
+    // 智能调整窗口位置，保证在可见范围内
+    adjustWindowPosition();
+    
     nextTick(() => scrollToBottom());
   }
+}
+
+function adjustWindowPosition() {
+  const triggerX = triggerDrag.position.value.x;
+  const triggerY = triggerDrag.position.value.y;
+  
+  // 窗口尺寸
+  const windowWidth = 380;
+  const windowHeight = 580;
+  
+  // 屏幕尺寸
+  const screenWidth = window.innerWidth;
+  const screenHeight = window.innerHeight;
+  
+  // 计算窗口应该在按钮的哪个方向
+  let offsetX = 0;
+  let offsetY = 0;
+  
+  // 默认在按钮左上方
+  offsetX = -windowWidth - 20;
+  offsetY = -windowHeight + 56;
+  
+  // 检查是否超出左边界
+  if (triggerX + offsetX < 0) {
+    offsetX = 20; // 改为右侧
+  }
+  
+  // 检查是否超出上边界
+  if (triggerY + offsetY < 0) {
+    offsetY = 20; // 改为下方
+  }
+  
+  // 检查是否超出右边界
+  if (triggerX + offsetX + windowWidth > screenWidth) {
+    offsetX = screenWidth - triggerX - windowWidth - 20;
+  }
+  
+  // 检查是否超出下边界
+  if (triggerY + offsetY + windowHeight > screenHeight) {
+    offsetY = screenHeight - triggerY - windowHeight - 20;
+  }
+  
+  windowDrag.position.value = { x: offsetX, y: offsetY };
 }
 
 function clearChat() {

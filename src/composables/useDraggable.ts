@@ -7,11 +7,9 @@ export function useDraggable(elementRef: Ref<HTMLElement | undefined>) {
   const position = ref({ x: 0, y: 0 });
   const isDragging = ref(false);
 
-  function startDrag(e: MouseEvent) {
+  function startDrag(e: MouseEvent, startX: number, startY: number) {
     isDragging.value = true;
     
-    const startX = e.clientX;
-    const startY = e.clientY;
     const startPos = { ...position.value };
 
     function onMouseMove(e: MouseEvent) {
