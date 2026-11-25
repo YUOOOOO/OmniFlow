@@ -21,7 +21,7 @@
       />
 
       <!-- Agent 面板 -->
-      <AgentPanel :active="isOpen" />
+      <AgentPanel :active="isOpen" @close="toggleChat" />
     </aside>
 
     <!-- 悬浮按钮 -->
