@@ -36,14 +36,8 @@
       </div>
 
       <!-- 设置视图 -->
-      <div v-else-if="currentView === 'settings'" class="view-container">
-        <div class="view-header">
-          <h2>设置</h2>
-          <p class="text-secondary">配置应用程序</p>
-        </div>
-        <div class="view-content">
-          <p class="text-muted">设置功能开发中...</p>
-        </div>
+      <div v-else-if="currentView === 'settings'" class="settings-view">
+        <MCPManager />
       </div>
     </main>
 
@@ -70,6 +64,7 @@ import {
 } from '@phosphor-icons/vue';
 import ChatView from '@/components/Chat/ChatView.vue';
 import InfiniteCanvas from '@/components/Canvas/InfiniteCanvas.vue';
+import MCPManager from '@/components/MCP/MCPManager.vue';
 import { usePanelStore } from '@/stores/panels';
 
 type ViewType = 'chat' | 'canvas' | 'plugins' | 'settings';
@@ -193,6 +188,11 @@ function addPanel() {
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 24px;
+}
+
+.settings-view {
+  height: 100%;
+  overflow-y: auto;
 }
 
 /* 浮动操作按钮 */
