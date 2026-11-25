@@ -3,8 +3,12 @@
     <!-- 悬浮按钮 -->
     <button
       v-if="!isOpen"
+      ref="triggerRef"
       class="chat-trigger"
+      :class="{ dragging: triggerDrag.isDragging.value }"
+      :style="triggerStyle"
       @click="toggleChat"
+      @mousedown="onTriggerDragStart"
     >
       <PhChats :size="24" weight="duotone" />
       <span v-if="hasUnread" class="unread-badge" />
@@ -12,14 +16,26 @@
 
     <!-- 对话窗口 -->
     <transition name="chat-slide">
-      <div v-if="isOpen" class="chat-window">
+      <div
+        v-if="isOpen"
+        ref="windowRef"
+        class="chat-window"
+        :class="{ dragging: windowDrag.isDragging.value }"
+        :style="windowStyle"
+      >
         <!-- 头部 -->
-        <div class="chat-header">
+        <div
+          class="chat-header"
+          @mousedown="windowDrag.startDrag"
+        >
           <div class="header-left">
             <PhSparkle :size="20" weight="duotone" />
             <span>OmniFlow Agent</span>
           </div>
           <div class="header-actions">
+            <button class="header-btn" @click="transferToCanvas" title="转移到画布">
+              <PhArrowSquareOut :size="16" />
+            </button>
             <button class="header-btn" @click="clearChat" title="清除对话">
               <PhTrash :size="16" />
             </button>
@@ -91,22 +107,74 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, watch } from 'vue';
+import { ref, computed, nextTick, watch } from 'vue';
 import {
   PhChats,
   PhSparkle,
   PhX,
   PhTrash,
-  PhPaperPlaneTilt
+  PhPaperPlaneTilt,
+  PhArrowSquareOut
 } from '@phosphor-icons/vue';
 import { useChatStore } from '@/stores/chat';
+import { usePanelStore } from '@/stores/panels';
+import { useDraggable, useWindowDrag } from '@/composables/useDraggable';
 
 const chatStore = useChatStore();
+const panelStore = usePanelStore();
 const isOpen = ref(false);
 const hasUnread = ref(false);
 const input = ref('');
 const contentRef = ref<HTMLElement>();
 const inputRef = ref<HTMLTextAreaElement>();
+const triggerRef = ref<HTMLElement>();
+const windowRef = ref<HTMLElement>();
+
+// 拖拽功能
+const triggerDrag = useDraggable(triggerRef);
+const windowDrag = useWindowDrag();
+
+const triggerStyle = computed(() => ({
+  transform: `translate(${triggerDrag.position.value.x}px, ${triggerDrag.position.value.y}px)`,
+  cursor: triggerDrag.isDragging.value ? 'grabbing' : 'grab'
+}));
+
+const windowStyle = computed(() => ({
+  transform: `translate(${windowDrag.position.value.x}px, ${windowDrag.position.value.y}px)`,
+  cursor: windowDrag.isDragging.value ? 'move' : 'default'
+}));
+
+function onTriggerDragStart(e: MouseEvent) {
+  // 检测是否是拖拽还是点击
+  const startX = e.clientX;
+  const startY = e.clientY;
+  let hasMoved = false;
+
+  function onMouseMove(e: MouseEvent) {
+    const deltaX = Math.abs(e.clientX - startX);
+    const deltaY = Math.abs(e.clientY - startY);
+    
+    if (deltaX > 5 || deltaY > 5) {
+      hasMoved = true;
+      triggerDrag.startDrag(e);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    }
+  }
+
+  function onMouseUp() {
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+    
+    // 如果没有移动，则是点击
+    if (!hasMoved) {
+      toggleChat();
+    }
+  }
+
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+}
 
 function toggleChat() {
   isOpen.value = !isOpen.value;
@@ -118,6 +186,22 @@ function toggleChat() {
 
 function clearChat() {
   chatStore.clearMessages();
+}
+
+function transferToCanvas() {
+  // 创建一个聊天面板到画布
+  panelStore.addPanel({
+    type: 'chat',
+    title: 'Chat Agent',
+    position: { x: 100, y: 100 },
+    size: { w: 400, h: 600 },
+    minimized: false
+  });
+  
+  // 关闭悬浮窗
+  isOpen.value = false;
+  
+  // TODO: 将对话历史转移到面板
 }
 
 async function sendMessage() {
@@ -175,15 +259,22 @@ watch(() => chatStore.messages.length, () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  cursor: grab;
   box-shadow: 0 4px 16px rgba(74, 158, 255, 0.4);
   transition: all 150ms ease-out;
   position: relative;
+  user-select: none;
 }
 
 .chat-trigger:hover {
   transform: scale(1.05);
   box-shadow: 0 6px 20px rgba(74, 158, 255, 0.5);
+}
+
+.chat-trigger.dragging {
+  cursor: grabbing;
+  box-shadow: 0 8px 24px rgba(74, 158, 255, 0.6);
+  transform: scale(1.1);
 }
 
 .unread-badge {
@@ -208,6 +299,12 @@ watch(() => chatStore.messages.length, () => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: box-shadow 150ms ease-out;
+}
+
+.chat-window.dragging {
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.7);
+  cursor: move !important;
 }
 
 /* 动画 */
@@ -230,6 +327,8 @@ watch(() => chatStore.messages.length, () => {
   padding: 16px;
   background: var(--surface-2);
   border-bottom: 1px solid var(--border-subtle);
+  cursor: move;
+  user-select: none;
 }
 
 .header-left {
