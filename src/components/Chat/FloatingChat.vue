@@ -1,290 +1,220 @@
 <template>
-  <div class="floating-chat">
+  <teleport to="body">
+    <aside
+      v-show="isOpen"
+      class="floating-agent"
+      :class="{ docked, dragging: interaction?.mode === 'move' }"
+      :style="panelStyle"
+      @pointerdown="startMenuMove"
+      @pointermove="moveInteraction"
+      @pointerup="stopInteraction"
+      @pointercancel="stopInteraction"
+      @lostpointercapture="stopInteraction"
+    >
+      <!-- 调整大小手柄 -->
+      <div
+        v-for="handle in resizeHandles"
+        :key="handle.edge"
+        class="resize-handle"
+        :class="handle.edge"
+        @pointerdown.stop="startInteraction($event, handle.edge)"
+      />
+
+      <!-- 头部 -->
+      <div class="agent-header">
+        <div class="header-left">
+          <PhSparkle :size="20" weight="duotone" />
+          <span>OmniFlow Agent</span>
+        </div>
+        <div class="header-actions">
+          <button class="header-btn" @click="toggleDocked" :title="docked ? '取消停靠' : '停靠到右侧'">
+            <PhPushPin :size="16" :weight="docked ? 'fill' : 'regular'" />
+          </button>
+          <button class="header-btn" @click="clearChat" title="清除对话">
+            <PhTrash :size="16" />
+          </button>
+          <button class="header-btn" @click="toggleChat" title="关闭">
+            <PhX :size="16" />
+          </button>
+        </div>
+      </div>
+
+      <!-- 对话内容 -->
+      <div class="agent-content" ref="contentRef">
+        <!-- 欢迎消息 -->
+        <div v-if="!chatStore.hasMessages" class="welcome-msg">
+          <PhSparkle :size="32" weight="duotone" class="welcome-icon" />
+          <p>你好！我可以帮你：</p>
+          <ul>
+            <li>创建和管理画布</li>
+            <li>添加各种面板</li>
+            <li>配置 MCP Server</li>
+            <li>执行命令和操作</li>
+          </ul>
+        </div>
+
+        <!-- 消息列表 -->
+        <div
+          v-for="msg in chatStore.messages"
+          :key="msg.id"
+          class="message"
+          :class="`message-${msg.role}`"
+        >
+          <div class="message-bubble">{{ msg.content }}</div>
+        </div>
+
+        <!-- 思考中 -->
+        <div v-if="chatStore.isThinking" class="message message-assistant">
+          <div class="message-bubble">
+            <div class="typing-indicator">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 输入区域 -->
+      <div class="agent-input">
+        <textarea
+          v-model="input"
+          class="input-field"
+          placeholder="告诉我你想做什么..."
+          rows="1"
+          :disabled="chatStore.isThinking"
+          @keydown.ctrl.enter="sendMessage"
+          @input="adjustHeight"
+          ref="inputRef"
+        />
+        <button
+          class="send-btn"
+          :disabled="!input.trim() || chatStore.isThinking"
+          @click="sendMessage"
+        >
+          <PhPaperPlaneTilt :size="18" weight="fill" />
+        </button>
+      </div>
+    </aside>
+
     <!-- 悬浮按钮 -->
     <button
       v-if="!isOpen"
-      ref="triggerRef"
-      class="chat-trigger"
-      :class="{ dragging: triggerDrag.isDragging.value }"
+      class="agent-trigger"
       :style="triggerStyle"
-      @mousedown="onTriggerDragStart"
+      @click="toggleChat"
     >
       <PhChats :size="24" weight="duotone" />
       <span v-if="hasUnread" class="unread-badge" />
     </button>
-
-    <!-- 对话窗口 -->
-    <transition name="chat-slide">
-      <div
-        v-if="isOpen"
-        ref="windowRef"
-        class="chat-window"
-        :class="{ dragging: windowDrag.isDragging.value }"
-        :style="windowStyle"
-      >
-        <!-- 头部 -->
-        <div
-          class="chat-header"
-          @mousedown="windowDrag.startDrag"
-        >
-          <div class="header-left">
-            <PhSparkle :size="20" weight="duotone" />
-            <span>OmniFlow Agent</span>
-          </div>
-          <div class="header-actions">
-            <button class="header-btn" @click="transferToCanvas" title="转移到画布">
-              <PhArrowSquareOut :size="16" />
-            </button>
-            <button class="header-btn" @click="clearChat" title="清除对话">
-              <PhTrash :size="16" />
-            </button>
-            <button class="header-btn" @click="toggleChat" title="关闭">
-              <PhX :size="16" />
-            </button>
-          </div>
-        </div>
-
-        <!-- 对话内容 -->
-        <div class="chat-content" ref="contentRef">
-          <!-- 欢迎消息 -->
-          <div v-if="!chatStore.hasMessages" class="welcome-msg">
-            <PhSparkle :size="32" weight="duotone" class="welcome-icon" />
-            <p>你好！我可以帮你：</p>
-            <ul>
-              <li>创建和管理画布</li>
-              <li>添加各种面板</li>
-              <li>配置 MCP Server</li>
-              <li>执行命令和操作</li>
-            </ul>
-          </div>
-
-          <!-- 消息列表 -->
-          <div
-            v-for="msg in chatStore.messages"
-            :key="msg.id"
-            class="message"
-            :class="`message-${msg.role}`"
-          >
-            <div class="message-bubble">{{ msg.content }}</div>
-          </div>
-
-          <!-- 思考中 -->
-          <div v-if="chatStore.isThinking" class="message message-assistant">
-            <div class="message-bubble">
-              <div class="typing-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 输入区域 -->
-        <div class="chat-input">
-          <textarea
-            v-model="input"
-            class="input-field"
-            placeholder="告诉我你想做什么..."
-            rows="1"
-            :disabled="chatStore.isThinking"
-            @keydown.ctrl.enter="sendMessage"
-            @input="adjustHeight"
-            ref="inputRef"
-          />
-          <button
-            class="send-btn"
-            :disabled="!input.trim() || chatStore.isThinking"
-            @click="sendMessage"
-          >
-            <PhPaperPlaneTilt :size="18" weight="fill" />
-          </button>
-        </div>
-      </div>
-    </transition>
-  </div>
+  </teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue';
+import { ref, computed, nextTick, watch, onBeforeUnmount } from 'vue';
 import {
   PhChats,
   PhSparkle,
   PhX,
   PhTrash,
   PhPaperPlaneTilt,
-  PhArrowSquareOut
+  PhPushPin
 } from '@phosphor-icons/vue';
 import { useChatStore } from '@/stores/chat';
-import { usePanelStore } from '@/stores/panels';
-import { useDraggable, useWindowDrag } from '@/composables/useDraggable';
 
 const chatStore = useChatStore();
-const panelStore = usePanelStore();
 const isOpen = ref(false);
 const hasUnread = ref(false);
+const docked = ref(false);
 const input = ref('');
 const contentRef = ref<HTMLElement>();
 const inputRef = ref<HTMLTextAreaElement>();
-const triggerRef = ref<HTMLElement>();
-const windowRef = ref<HTMLElement>();
 
-// 从 localStorage 加载位置
-const savedTriggerPos = localStorage.getItem('omniflow-chat-trigger-pos');
-const savedWindowPos = localStorage.getItem('omniflow-chat-window-pos');
+// 窗口尺寸和位置
+const preferredWidth = 420;
+const preferredHeight = ref(0.8);
+const viewport = { width: window.innerWidth, height: window.innerHeight };
 
-// 拖拽功能
-const triggerDrag = useDraggable(triggerRef);
-const windowDrag = useWindowDrag();
+const left = ref(viewport.width - preferredWidth - 20);
+const top = ref(20);
+const width = ref(preferredWidth);
+const height = computed(() => Math.min(preferredHeight.value * viewport.height, viewport.height - 40));
 
-// 恢复保存的位置
-if (savedTriggerPos) {
-  const pos = JSON.parse(savedTriggerPos);
-  triggerDrag.position.value = pos;
+// 交互状态
+interface Interaction {
+  mode: 'move' | 'left' | 'right' | 'bottom';
+  pointerId: number;
+  element: HTMLElement;
+  x: number;
+  y: number;
+  left: number;
+  top: number;
+  right: number;
+  width: number;
+  height: number;
 }
 
-if (savedWindowPos) {
-  const pos = JSON.parse(savedWindowPos);
-  windowDrag.position.value = pos;
-}
+const interaction = ref<Interaction>();
 
-// 监听位置变化，保存到 localStorage
-watch(() => triggerDrag.position.value, (pos) => {
-  localStorage.setItem('omniflow-chat-trigger-pos', JSON.stringify(pos));
-}, { deep: true });
+// 调整大小手柄
+const resizeHandles = computed(() => {
+  const handles = [];
+  if (!docked.value) {
+    handles.push({ edge: 'left' as const });
+    handles.push({ edge: 'right' as const });
+  }
+  handles.push({ edge: 'bottom' as const });
+  return handles;
+});
 
-watch(() => windowDrag.position.value, (pos) => {
-  localStorage.setItem('omniflow-chat-window-pos', JSON.stringify(pos));
-}, { deep: true });
-
-const triggerStyle = computed(() => ({
-  transform: `translate(${triggerDrag.position.value.x}px, ${triggerDrag.position.value.y}px)`,
-  cursor: triggerDrag.isDragging.value ? 'grabbing' : 'grab'
-}));
-
-const windowStyle = computed(() => {
-  // 窗口位置跟随悬浮按钮
-  const baseX = triggerDrag.position.value.x;
-  const baseY = triggerDrag.position.value.y;
-  const offsetX = windowDrag.position.value.x;
-  const offsetY = windowDrag.position.value.y;
+// 面板样式
+const panelStyle = computed(() => {
+  if (docked.value) {
+    return {
+      right: '0',
+      top: '0',
+      bottom: '0',
+      width: `${width.value}px`,
+      height: '100vh'
+    };
+  }
   
   return {
-    transform: `translate(${baseX + offsetX}px, ${baseY + offsetY}px)`,
-    cursor: windowDrag.isDragging.value ? 'move' : 'default'
+    left: `${left.value}px`,
+    top: `${top.value}px`,
+    width: `${width.value}px`,
+    height: `${height.value}px`
   };
 });
 
-function onTriggerDragStart(e: MouseEvent) {
-  e.preventDefault();
-  
-  const startX = e.clientX;
-  const startY = e.clientY;
-  let hasMoved = false;
-  let isDragging = false;
-
-  function onMouseMove(e: MouseEvent) {
-    const deltaX = Math.abs(e.clientX - startX);
-    const deltaY = Math.abs(e.clientY - startY);
-    
-    // 移动超过 5px 才算拖拽
-    if (!isDragging && (deltaX > 5 || deltaY > 5)) {
-      isDragging = true;
-      hasMoved = true;
-      e.preventDefault();
-      // 开始拖拽，传入起始坐标
-      triggerDrag.startDrag(e, startX, startY);
-    }
-  }
-
-  function onMouseUp(e: MouseEvent) {
-    document.removeEventListener('mousemove', onMouseMove);
-    document.removeEventListener('mouseup', onMouseUp);
-    
-    // 如果没有移动，则是点击
-    if (!hasMoved) {
-      e.stopPropagation();
-      toggleChat();
-    }
-  }
-
-  document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mouseup', onMouseUp);
-}
+// 触发按钮样式
+const triggerStyle = computed(() => ({
+  right: '24px',
+  bottom: '24px'
+}));
 
 function toggleChat() {
   isOpen.value = !isOpen.value;
   if (isOpen.value) {
     hasUnread.value = false;
-    
-    // 智能调整窗口位置，保证在可见范围内
-    adjustWindowPosition();
-    
     nextTick(() => scrollToBottom());
   }
 }
 
-function adjustWindowPosition() {
-  const triggerX = triggerDrag.position.value.x;
-  const triggerY = triggerDrag.position.value.y;
+function toggleDocked() {
+  docked.value = !docked.value;
   
-  // 窗口尺寸
-  const windowWidth = 380;
-  const windowHeight = 580;
-  
-  // 屏幕尺寸
-  const screenWidth = window.innerWidth;
-  const screenHeight = window.innerHeight;
-  
-  // 计算窗口应该在按钮的哪个方向
-  let offsetX = 0;
-  let offsetY = 0;
-  
-  // 默认在按钮左上方
-  offsetX = -windowWidth - 20;
-  offsetY = -windowHeight + 56;
-  
-  // 检查是否超出左边界
-  if (triggerX + offsetX < 0) {
-    offsetX = 20; // 改为右侧
+  // 切换到停靠模式时，调整位置
+  if (docked.value) {
+    width.value = Math.min(width.value, viewport.width * 0.45);
   }
   
-  // 检查是否超出上边界
-  if (triggerY + offsetY < 0) {
-    offsetY = 20; // 改为下方
-  }
-  
-  // 检查是否超出右边界
-  if (triggerX + offsetX + windowWidth > screenWidth) {
-    offsetX = screenWidth - triggerX - windowWidth - 20;
-  }
-  
-  // 检查是否超出下边界
-  if (triggerY + offsetY + windowHeight > screenHeight) {
-    offsetY = screenHeight - triggerY - windowHeight - 20;
-  }
-  
-  windowDrag.position.value = { x: offsetX, y: offsetY };
+  // 保存状态
+  localStorage.setItem('omniflow-agent-docked', JSON.stringify(docked.value));
 }
 
 function clearChat() {
   chatStore.clearMessages();
-}
-
-function transferToCanvas() {
-  // 创建一个聊天面板到画布
-  panelStore.addPanel({
-    type: 'chat',
-    title: 'Chat Agent',
-    position: { x: 100, y: 100 },
-    size: { w: 400, h: 600 },
-    minimized: false
-  });
-  
-  // 关闭悬浮窗
-  isOpen.value = false;
-  
-  // TODO: 将对话历史转移到面板
 }
 
 async function sendMessage() {
@@ -314,104 +244,203 @@ function scrollToBottom() {
   });
 }
 
+function startMenuMove(event: PointerEvent) {
+  const target = event.target as HTMLElement;
+  if (!target.closest('.agent-header') || target.closest('button')) return;
+  if (docked.value) return; // 停靠模式下不允许移动
+  startInteraction(event, 'move');
+}
+
+function startInteraction(event: PointerEvent, mode: Interaction['mode']) {
+  if (event.button !== 0 || interaction.value) return;
+  
+  event.preventDefault();
+  const element = event.currentTarget as HTMLElement;
+  element.setPointerCapture(event.pointerId);
+  
+  interaction.value = {
+    mode,
+    pointerId: event.pointerId,
+    element,
+    x: event.clientX,
+    y: event.clientY,
+    left: left.value,
+    top: top.value,
+    right: docked.value ? viewport.width : left.value + width.value,
+    width: width.value,
+    height: height.value
+  };
+}
+
+function moveInteraction(event: PointerEvent) {
+  const current = interaction.value;
+  if (!current || current.pointerId !== event.pointerId) return;
+  
+  if (current.mode === 'move') {
+    movePanel(current.left + event.clientX - current.x, current.top + event.clientY - current.y);
+  } else if (current.mode === 'left') {
+    resizePanel('left', current.width + current.x - event.clientX, current.right);
+  } else if (current.mode === 'right') {
+    resizePanel('right', current.width + event.clientX - current.x, current.left);
+  } else {
+    resizePanel('bottom', current.height + event.clientY - current.y, current.top);
+  }
+}
+
+function stopInteraction(event?: PointerEvent) {
+  const current = interaction.value;
+  if (event && current?.pointerId !== event.pointerId) return;
+  
+  interaction.value = undefined;
+  if (current?.element.hasPointerCapture(current.pointerId)) {
+    current.element.releasePointerCapture(current.pointerId);
+  }
+}
+
+function movePanel(newLeft: number, newTop: number) {
+  const gap = 20;
+  left.value = Math.max(gap, Math.min(newLeft, viewport.width - width.value - gap));
+  top.value = Math.max(gap, Math.min(newTop, viewport.height - height.value - gap));
+  
+  // 保存位置
+  localStorage.setItem('omniflow-agent-position', JSON.stringify({ left: left.value, top: top.value }));
+}
+
+function resizePanel(edge: 'left' | 'right' | 'bottom', size: number, anchor?: number) {
+  const gap = 20;
+  
+  if (edge === 'bottom') {
+    preferredHeight.value = Math.max(240, Math.min(size, viewport.height - top.value - gap)) / viewport.height;
+  } else {
+    const newWidth = Math.max(320, Math.min(size, docked.value ? viewport.width * 0.45 : viewport.width - gap * 2));
+    
+    if (edge === 'left' && anchor !== undefined) {
+      left.value = Math.max(gap, anchor - newWidth);
+    }
+    
+    width.value = newWidth;
+  }
+  
+  // 保存尺寸
+  localStorage.setItem('omniflow-agent-size', JSON.stringify({ width: width.value, height: preferredHeight.value }));
+}
+
+function resizeViewport() {
+  stopInteraction();
+  viewport.width = window.innerWidth;
+  viewport.height = window.innerHeight;
+}
+
+// 恢复保存的状态
+const savedDocked = localStorage.getItem('omniflow-agent-docked');
+if (savedDocked) docked.value = JSON.parse(savedDocked);
+
+const savedPosition = localStorage.getItem('omniflow-agent-position');
+if (savedPosition) {
+  const pos = JSON.parse(savedPosition);
+  left.value = pos.left;
+  top.value = pos.top;
+}
+
+const savedSize = localStorage.getItem('omniflow-agent-size');
+if (savedSize) {
+  const size = JSON.parse(savedSize);
+  width.value = size.width;
+  preferredHeight.value = size.height;
+}
+
 // 监听新消息
 watch(() => chatStore.messages.length, () => {
-  if (!isOpen.value) {
-    hasUnread.value = true;
-  }
+  if (!isOpen.value) hasUnread.value = true;
   scrollToBottom();
+});
+
+window.addEventListener('resize', resizeViewport);
+onBeforeUnmount(() => {
+  stopInteraction();
+  window.removeEventListener('resize', resizeViewport);
 });
 </script>
 
 <style scoped>
-.floating-chat {
+/* 悬浮 Agent */
+.floating-agent {
   position: fixed;
-  right: 24px;
-  bottom: 24px;
-  z-index: 1000;
-}
-
-/* 悬浮按钮 */
-.chat-trigger {
-  width: 56px;
-  height: 56px;
-  border-radius: 28px;
-  border: none;
-  background: rgb(var(--agent-rgb));
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: grab;
-  box-shadow: 0 4px 16px rgba(74, 158, 255, 0.4);
-  transition: all 150ms ease-out;
-  position: relative;
-  user-select: none;
-}
-
-.chat-trigger:hover {
-  transform: scale(1.05);
-  box-shadow: 0 6px 20px rgba(74, 158, 255, 0.5);
-}
-
-.chat-trigger.dragging {
-  cursor: grabbing;
-  box-shadow: 0 8px 24px rgba(74, 158, 255, 0.6);
-  transform: scale(1.1);
-}
-
-.unread-badge {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--activity-orange);
-  border: 2px solid white;
-}
-
-/* 对话窗口 */
-.chat-window {
-  width: 380px;
-  height: 580px;
-  background: var(--surface-1);
+  z-index: 1001;
+  box-sizing: border-box;
+  max-width: 100vw;
+  max-height: 100vh;
   border: 1px solid var(--border-strong);
   border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-1) 70%, transparent);
+  backdrop-filter: blur(6px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: box-shadow 150ms ease-out;
 }
 
-.chat-window.dragging {
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.7);
-  cursor: move !important;
+.floating-agent.docked {
+  border-width: 0 0 0 1px;
+  border-radius: 0;
+  background: var(--surface-1);
+  box-shadow: none;
 }
 
-/* 动画 */
-.chat-slide-enter-active,
-.chat-slide-leave-active {
-  transition: all 250ms ease-out;
+.floating-agent:not(.docked) .agent-header {
+  cursor: grab;
+  user-select: none;
 }
 
-.chat-slide-enter-from,
-.chat-slide-leave-to {
-  opacity: 0;
-  transform: translateY(20px) scale(0.95);
+.floating-agent.dragging .agent-header {
+  cursor: grabbing;
+}
+
+/* 调整大小手柄 */
+.resize-handle {
+  position: absolute;
+  z-index: 1;
+  touch-action: none;
+}
+
+.resize-handle.left,
+.resize-handle.right {
+  top: 0;
+  bottom: 5px;
+  width: 5px;
+  cursor: ew-resize;
+}
+
+.resize-handle.left {
+  left: 0;
+}
+
+.resize-handle.right {
+  right: 0;
+}
+
+.resize-handle.bottom {
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 5px;
+  cursor: ns-resize;
+}
+
+.resize-handle:hover {
+  background: var(--focus-blue);
+  opacity: 0.5;
 }
 
 /* 头部 */
-.chat-header {
+.agent-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 16px;
   background: var(--surface-2);
   border-bottom: 1px solid var(--border-subtle);
-  cursor: move;
-  user-select: none;
+  flex-shrink: 0;
 }
 
 .header-left {
@@ -446,13 +475,14 @@ watch(() => chatStore.messages.length, () => {
   color: var(--text-primary);
 }
 
-/* 对话内容 */
-.chat-content {
+/* 内容区域 */
+.agent-content {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
 }
 
+/* 欢迎消息 */
 .welcome-msg {
   text-align: center;
   color: var(--text-secondary);
@@ -506,8 +536,8 @@ watch(() => chatStore.messages.length, () => {
 
 .message-assistant .message-bubble {
   background: var(--surface-2);
-  color: var(--text-primary);
   border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
   border-radius: 12px 12px 12px 4px;
 }
 
@@ -546,13 +576,14 @@ watch(() => chatStore.messages.length, () => {
 }
 
 /* 输入区域 */
-.chat-input {
+.agent-input {
   display: flex;
   gap: 8px;
   padding: 12px;
   background: var(--surface-2);
   border-top: 1px solid var(--border-subtle);
   align-items: flex-end;
+  flex-shrink: 0;
 }
 
 .input-field {
@@ -602,5 +633,39 @@ watch(() => chatStore.messages.length, () => {
 .send-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* 悬浮按钮 */
+.agent-trigger {
+  position: fixed;
+  width: 56px;
+  height: 56px;
+  border-radius: 28px;
+  border: none;
+  background: rgb(var(--agent-rgb));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(74, 158, 255, 0.4);
+  transition: all 150ms ease-out;
+  z-index: 1000;
+}
+
+.agent-trigger:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(74, 158, 255, 0.5);
+}
+
+.unread-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--activity-orange);
+  border: 2px solid white;
 }
 </style>
