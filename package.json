@@ -1,0 +1,22 @@
+{
+  "name": "omniflow",
+  "version": "0.1.0",
+  "description": "Infinite canvas with plugin system",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "plugins/*"
+  ],
+  "scripts": {
+    "dev": "pnpm --filter @omniflow/renderer dev",
+    "dev:desktop": "pnpm --filter @omniflow/desktop dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
