@@ -1,41 +1,56 @@
 <template>
-  <div class="agent-panel">
+  <div class="agent-conversation">
     <!-- 顶部栏 -->
-    <div class="agent-header">
-      <button class="header-action" @click="$emit('newChat')" title="新建对话">
+    <div class="conversation-header">
+      <el-button text circle @click="$emit('newChat')">
         <PhPlus :size="16" />
-      </button>
+      </el-button>
       
-      <div class="conversation-name">{{ conversationTitle }}</div>
+      <div class="conversation-title">{{ conversationTitle }}</div>
       
       <div class="header-actions">
-        <button class="header-action" @click="toggleHistory">
-          <PhCaretDown :size="14" />
-        </button>
-        <button class="header-action" @click="$emit('openHistory')">
+        <el-button text circle @click="$emit('openHistory')">
           <PhClockCounterClockwise :size="16" />
-        </button>
-        <button class="header-action" @click="$emit('close')">
+        </el-button>
+        <el-button text circle @click="$emit('close')">
           <PhX :size="16" />
-        </button>
+        </el-button>
       </div>
     </div>
 
     <!-- 消息列表 -->
-    <div class="messages-container" ref="messagesRef">
+    <div class="messages-list" ref="messagesRef">
+      <!-- 欢迎屏幕 -->
+      <div v-if="messages.length === 0" class="welcome-screen">
+        <div class="welcome-icon">
+          <PhSparkle :size="42" weight="duotone" />
+        </div>
+        <h3 class="welcome-title">开始新的对话</h3>
+        <p class="welcome-hint">我可以帮你管理画布、调用工具、执行命令</p>
+      </div>
+
+      <!-- 消息列表 -->
       <div
         v-for="message in messages"
         :key="message.id"
-        class="message-wrapper"
-        :class="`message-${message.role}`"
+        class="message-row"
       >
-        <div class="message-content">{{ message.content }}</div>
+        <div class="message-content" :class="`message-${message.role}`">
+          <div class="message-text">{{ message.content }}</div>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div v-if="message.role === 'assistant'" class="message-actions">
+          <el-button class="message-action" text circle @click="copyMessage(message)">
+            <PhCopy :size="14" />
+          </el-button>
+        </div>
       </div>
 
-      <!-- 思考中动画 -->
-      <div v-if="isRunning" class="message-wrapper message-assistant">
-        <div class="message-content">
-          <div class="thinking-dots">
+      <!-- 思考中 -->
+      <div v-if="isRunning" class="message-row">
+        <div class="message-content message-assistant">
+          <div class="thinking-indicator">
             <span></span>
             <span></span>
             <span></span>
@@ -45,29 +60,29 @@
     </div>
 
     <!-- 输入区域 -->
-    <div class="input-area">
-      <button class="attach-btn" @click="triggerFileUpload">
-        <PhPaperclip :size="20" />
-      </button>
+    <div class="input-container">
+      <el-button text circle @click="triggerFileUpload">
+        <PhPaperclip :size="18" />
+      </el-button>
       
-      <textarea
+      <el-input
         ref="inputRef"
         v-model="inputText"
-        class="message-input"
-        placeholder="输入消息..."
-        rows="1"
+        type="textarea"
+        :autosize="{ minRows: 1, maxRows: 4 }"
         :disabled="isRunning"
+        placeholder="输入消息..."
         @keydown.ctrl.enter="sendMessage"
-        @input="adjustHeight"
       />
       
-      <button
-        class="send-btn"
+      <el-button
+        type="primary"
+        circle
         :disabled="!canSend"
         @click="sendMessage"
       >
-        <PhPaperPlaneTilt :size="18" weight="fill" />
-      </button>
+        <PhPaperPlaneTilt :size="16" weight="fill" />
+      </el-button>
 
       <input
         ref="fileInputRef"
@@ -86,15 +101,17 @@
 import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import {
   PhPlus,
-  PhCaretDown,
   PhClockCounterClockwise,
   PhX,
   PhPaperclip,
-  PhPaperPlaneTilt
+  PhPaperPlaneTilt,
+  PhSparkle,
+  PhCopy
 } from '@phosphor-icons/vue';
+import { ElButton, ElInput } from 'element-plus';
 import { useAgentStore } from '@/stores/agent';
 import { agentService } from '@/core/agent/AgentService';
-import type { Attachment } from '@/types/agent';
+import type { AgentMessage } from '@/types/agent';
 
 interface Props {
   active?: boolean;
@@ -109,7 +126,7 @@ const emit = defineEmits<{
 
 const agentStore = useAgentStore();
 const messagesRef = ref<HTMLElement>();
-const inputRef = ref<HTMLTextAreaElement>();
+const inputRef = ref();
 const fileInputRef = ref<HTMLInputElement>();
 const inputText = ref('');
 
@@ -118,19 +135,11 @@ const isRunning = computed(() => agentStore.isRunning);
 const conversationTitle = computed(() => agentStore.activeConversation?.title ?? '新对话');
 const canSend = computed(() => inputText.value.trim().length > 0 && !isRunning.value);
 
-function toggleHistory() {
-  // TODO
-}
-
 async function sendMessage() {
   if (!canSend.value) return;
 
   const text = inputText.value;
   inputText.value = '';
-  
-  if (inputRef.value) {
-    inputRef.value.style.height = 'auto';
-  }
 
   // 添加用户消息
   agentStore.addMessage({
@@ -166,10 +175,8 @@ async function sendMessage() {
   agentStore.saveHistory();
 }
 
-function adjustHeight() {
-  if (!inputRef.value) return;
-  inputRef.value.style.height = 'auto';
-  inputRef.value.style.height = Math.min(inputRef.value.scrollHeight, 120) + 'px';
+function copyMessage(message: AgentMessage) {
+  navigator.clipboard.writeText(message.content);
 }
 
 function triggerFileUpload() {
@@ -202,49 +209,30 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.agent-panel {
+.agent-conversation {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #1a1a1a;
 }
 
 /* 顶部栏 */
-.agent-header {
+.conversation-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--el-border-color-light);
 }
 
-.header-action {
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.6);
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 150ms ease-out;
-  flex-shrink: 0;
-}
-
-.header-action:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.conversation-name {
+.conversation-title {
   flex: 1;
   font-size: 14px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--el-text-color-primary);
   text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .header-actions {
@@ -252,70 +240,125 @@ onMounted(() => {
   gap: 4px;
 }
 
-/* 消息容器 */
-.messages-container {
+/* 消息列表 */
+.messages-list {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 16px;
+  padding: 12px 0;
+}
+
+/* 欢迎屏幕 */
+.welcome-screen {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px 20px;
+  text-align: center;
 }
 
-.message-wrapper {
+.welcome-icon {
+  width: 64px;
+  height: 64px;
   display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--el-color-primary-light-9), var(--el-color-primary-light-7));
+  border-radius: 20px;
+  color: var(--el-color-primary);
+  margin-bottom: 16px;
 }
 
-.message-user {
-  justify-content: flex-end;
+.welcome-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  margin: 0 0 8px 0;
 }
 
-.message-assistant {
-  justify-content: flex-start;
+.welcome-hint {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* 消息行 */
+.message-row {
+  padding: 0 12px 12px;
+}
+
+.message-row:hover .message-actions {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .message-content {
-  padding: 10px 16px;
-  border-radius: 16px;
+  padding: 10px 14px;
+  border-radius: 12px;
   font-size: 14px;
-  line-height: 1.5;
-  max-width: 75%;
+  line-height: 1.6;
   word-wrap: break-word;
 }
 
-.message-user .message-content {
-  background: #4A9EFF;
+.message-user {
+  background: var(--el-color-primary);
   color: white;
-  border-radius: 16px 16px 4px 16px;
+  margin-left: auto;
+  max-width: 75%;
+  border-radius: 12px 12px 4px 12px;
 }
 
-.message-assistant .message-content {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.9);
-  border-radius: 16px 16px 16px 4px;
+.message-assistant {
+  background: var(--el-fill-color-extra-light);
+  color: var(--el-text-color-primary);
   max-width: 85%;
+  border-radius: 12px 12px 12px 4px;
+}
+
+.message-text {
+  margin: 0;
+}
+
+/* 消息操作 */
+.message-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease-out;
+}
+
+.message-action {
+  width: 24px;
+  height: 24px;
+  padding: 0;
 }
 
 /* 思考动画 */
-.thinking-dots {
+.thinking-indicator {
   display: flex;
   gap: 6px;
   padding: 4px 0;
 }
 
-.thinking-dots span {
+.thinking-indicator span {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.4);
+  background: currentColor;
+  opacity: 0.4;
   animation: thinking 1.4s infinite ease-in-out;
 }
 
-.thinking-dots span:nth-child(2) {
+.thinking-indicator span:nth-child(2) {
   animation-delay: 0.2s;
 }
 
-.thinking-dots span:nth-child(3) {
+.thinking-indicator span:nth-child(3) {
   animation-delay: 0.4s;
 }
 
@@ -331,90 +374,22 @@ onMounted(() => {
 }
 
 /* 输入区域 */
-.input-area {
+.input-container {
   display: flex;
   align-items: flex-end;
-  gap: 10px;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--el-border-color-light);
 }
 
-.attach-btn {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 150ms ease-out;
-}
-
-.attach-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.message-input {
-  flex: 1;
-  min-height: 36px;
-  max-height: 120px;
-  padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 14px;
-  font-family: inherit;
-  resize: none;
-  outline: none;
-  transition: all 150ms ease-out;
-}
-
-.message-input:focus {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-.message-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
-}
-
-.send-btn {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: #4A9EFF;
-  color: white;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 150ms ease-out;
-}
-
-.send-btn:hover:not(:disabled) {
-  background: #5BA8FF;
-  transform: scale(1.05);
-}
-
-.send-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
+.input-container :deep(.el-textarea__inner) {
+  box-shadow: none;
 }
 
 .input-hint {
-  padding: 0 16px 10px 16px;
+  padding: 0 12px 12px;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--el-text-color-secondary);
   text-align: center;
-  background: rgba(255, 255, 255, 0.03);
 }
 </style>
