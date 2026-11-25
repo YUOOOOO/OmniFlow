@@ -1,7 +1,7 @@
 <template>
   <div class="omniflow-app">
     <h1>OmniFlow</h1>
-    <p>无限画布 + 插件系统</p>
+    <p>无限画布 + 插件系统 (Electron + npm)</p>
     <el-button type="primary">Hello Element Plus</el-button>
   </div>
 </template>
@@ -10,7 +10,17 @@
 // TODO: 实现插件系统和画布
 </script>
 
-<style scoped>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
 .omniflow-app {
   width: 100vw;
   height: 100vh;
@@ -18,7 +28,6 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 h1 {
