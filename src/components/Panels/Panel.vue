@@ -44,10 +44,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { 
-  Minus as PhMinus, 
-  Square as PhSquare, 
-  X as PhX,
-  Terminal as PhTerminal
+  PhMinus, 
+  PhSquare, 
+  PhX,
+  PhTerminal
 } from '@phosphor-icons/vue';
 import { usePanelStore } from '@/stores/panels';
 import type { PanelType } from '@/types/panel';

@@ -68,11 +68,11 @@
           :disabled="!input.trim() || chatStore.isThinking"
           @click="sendMessage"
         >
-          <PhPaperPlaneRight :size="20" weight="fill" />
+          <PhPaperPlaneTilt :size="20" weight="fill" />
         </button>
       </div>
       <div class="input-hint">
-        <PhKeyboard :size="14" /> Ctrl + Enter 发送
+        Ctrl + Enter 发送
       </div>
     </div>
   </div>
@@ -81,12 +81,11 @@
 <script setup lang="ts">
 import { ref, nextTick, watch } from 'vue';
 import { 
-  Sparkle as PhSparkle,
-  PaperPlaneRight as PhPaperPlaneRight,
-  Keyboard as PhKeyboard,
-  SquaresFour,
-  Terminal,
-  Plus
+  PhSparkle,
+  PhPaperPlaneTilt,
+  PhSquaresFour,
+  PhTerminal,
+  PhPlus
 } from '@phosphor-icons/vue';
 import { useChatStore } from '@/stores/chat';
 
@@ -96,9 +95,9 @@ const historyRef = ref<HTMLElement>();
 const inputRef = ref<HTMLTextAreaElement>();
 
 const quickActions = [
-  { icon: Plus, label: '创建空白画布', text: '创建一个空白画布' },
-  { icon: Terminal, label: '添加 Terminal', text: '添加一个 Terminal 面板' },
-  { icon: SquaresFour, label: '项目看板', text: '创建一个项目看板' },
+  { icon: PhPlus, label: '创建空白画布', text: '创建一个空白画布' },
+  { icon: PhTerminal, label: '添加 Terminal', text: '添加一个 Terminal 面板' },
+  { icon: PhSquaresFour, label: '项目看板', text: '创建一个项目看板' },
 ];
 
 function quickStart(text: string) {

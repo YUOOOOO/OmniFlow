@@ -45,9 +45,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { 
-  House as PhHouse, 
-  GridFour as PhGridFour,
-  SquaresFour as PhSquaresFour
+  PhHouse, 
+  PhGridFour,
+  PhSquaresFour
 } from '@phosphor-icons/vue';
 import { useCanvasStore } from '@/stores/canvas';
 import { usePanelStore } from '@/stores/panels';

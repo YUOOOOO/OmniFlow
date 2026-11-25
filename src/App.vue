@@ -62,11 +62,11 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { 
-  ChatCircle, 
-  SquaresFour, 
-  Plug, 
-  Gear,
-  Plus as PhPlus 
+  PhChatCircle, 
+  PhSquaresFour, 
+  PhPlug, 
+  PhGear,
+  PhPlus
 } from '@phosphor-icons/vue';
 import ChatView from '@/components/Chat/ChatView.vue';
 import InfiniteCanvas from '@/components/Canvas/InfiniteCanvas.vue';
@@ -78,10 +78,10 @@ const currentView = ref<ViewType>('chat');
 const panelStore = usePanelStore();
 
 const navItems = [
-  { id: 'chat', icon: ChatCircle, label: '对话' },
-  { id: 'canvas', icon: SquaresFour, label: '画布' },
-  { id: 'plugins', icon: Plug, label: '插件' },
-  { id: 'settings', icon: Gear, label: '设置' }
+  { id: 'chat', icon: PhChatCircle, label: '对话' },
+  { id: 'canvas', icon: PhSquaresFour, label: '画布' },
+  { id: 'plugins', icon: PhPlug, label: '插件' },
+  { id: 'settings', icon: PhGear, label: '设置' }
 ];
 
 function addPanel() {
