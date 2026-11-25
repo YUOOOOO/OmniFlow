@@ -1,21 +1,23 @@
 <template>
   <div class="omniflow-app">
     <!-- 侧边栏 -->
-    <div class="sidebar">
-      <div
-        v-for="item in navItems"
-        :key="item.id"
-        class="nav-item"
-        :class="{ active: currentView === item.id }"
-        @click="currentView = item.id"
-      >
-        <span class="nav-icon">{{ item.icon }}</span>
-        <span class="nav-label">{{ item.label }}</span>
-      </div>
-    </div>
+    <aside class="sidebar">
+      <nav class="sidebar-nav">
+        <button
+          v-for="item in navItems"
+          :key="item.id"
+          class="nav-item"
+          :class="{ active: currentView === item.id }"
+          @click="currentView = item.id"
+        >
+          <component :is="item.icon" :size="20" weight="duotone" />
+          <span class="nav-label">{{ item.label }}</span>
+        </button>
+      </nav>
+    </aside>
 
-    <!-- 主视图区域 -->
-    <div class="main-area">
+    <!-- 主内容区域 -->
+    <main class="main-area">
       <!-- 对话视图 -->
       <ChatView v-if="currentView === 'chat'" />
 
@@ -23,34 +25,49 @@
       <InfiniteCanvas v-else-if="currentView === 'canvas'" />
 
       <!-- 插件视图 -->
-      <div v-else-if="currentView === 'plugins'" class="plugins-view">
-        <h2>插件管理</h2>
-        <p>插件功能开发中...</p>
+      <div v-else-if="currentView === 'plugins'" class="view-container">
+        <div class="view-header">
+          <h2>插件管理</h2>
+          <p class="text-secondary">管理和安装插件</p>
+        </div>
+        <div class="view-content">
+          <p class="text-muted">插件功能开发中...</p>
+        </div>
       </div>
 
       <!-- 设置视图 -->
-      <div v-else-if="currentView === 'settings'" class="settings-view">
-        <h2>设置</h2>
-        <p>设置功能开发中...</p>
+      <div v-else-if="currentView === 'settings'" class="view-container">
+        <div class="view-header">
+          <h2>设置</h2>
+          <p class="text-secondary">配置应用程序</p>
+        </div>
+        <div class="view-content">
+          <p class="text-muted">设置功能开发中...</p>
+        </div>
       </div>
-    </div>
+    </main>
 
-    <!-- 快速添加按钮 -->
-    <el-button
+    <!-- 画布快速添加按钮 -->
+    <button
       v-if="currentView === 'canvas'"
-      class="quick-add-btn"
-      type="primary"
-      circle
-      size="large"
+      class="fab"
       @click="addPanel"
+      title="添加面板"
     >
-      +
-    </el-button>
+      <PhPlus :size="24" weight="bold" />
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { 
+  ChatCircle, 
+  SquaresFour, 
+  Plug, 
+  Gear,
+  Plus as PhPlus 
+} from '@phosphor-icons/vue';
 import ChatView from '@/components/Chat/ChatView.vue';
 import InfiniteCanvas from '@/components/Canvas/InfiniteCanvas.vue';
 import { usePanelStore } from '@/stores/panels';
@@ -61,10 +78,10 @@ const currentView = ref<ViewType>('chat');
 const panelStore = usePanelStore();
 
 const navItems = [
-  { id: 'chat', icon: '💬', label: '对话' },
-  { id: 'canvas', icon: '📋', label: '画布' },
-  { id: 'plugins', icon: '🔌', label: '插件' },
-  { id: 'settings', icon: '⚙️', label: '设置' }
+  { id: 'chat', icon: ChatCircle, label: '对话' },
+  { id: 'canvas', icon: SquaresFour, label: '画布' },
+  { id: 'plugins', icon: Plug, label: '插件' },
+  { id: 'settings', icon: Gear, label: '设置' }
 ];
 
 function addPanel() {
@@ -78,87 +95,131 @@ function addPanel() {
 }
 </script>
 
-<style>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  overflow: hidden;
-}
-
+<style scoped>
 .omniflow-app {
   display: flex;
   width: 100vw;
   height: 100vh;
-  background: #1a1a1a;
+  background: var(--surface-0);
 }
 
+/* 侧边栏 */
 .sidebar {
   width: 60px;
-  background: #2a2a2a;
-  border-right: 1px solid #444;
+  background: var(--surface-1);
+  border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
-  padding: 10px 0;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+  gap: 2px;
 }
 
 .nav-item {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 4px;
   padding: 12px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
   cursor: pointer;
-  color: #aaa;
-  transition: all 0.2s;
+  transition: all 150ms ease-out;
+  position: relative;
+}
+
+.nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 0;
+  background: var(--focus-blue);
+  border-radius: 0 2px 2px 0;
+  transition: height 150ms ease-out;
 }
 
 .nav-item:hover {
-  background: #333;
-  color: #fff;
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
 .nav-item.active {
-  background: #409eff;
-  color: #fff;
+  color: var(--focus-blue);
 }
 
-.nav-icon {
-  font-size: 20px;
-  margin-bottom: 4px;
+.nav-item.active::before {
+  height: 24px;
 }
 
 .nav-label {
   font-size: 11px;
+  font-weight: 500;
 }
 
+/* 主内容区域 */
 .main-area {
   flex: 1;
   position: relative;
   overflow: hidden;
 }
 
-.plugins-view,
-.settings-view {
-  padding: 40px;
-  color: #fff;
+.view-container {
+  padding: 32px;
+  overflow-y: auto;
+  height: 100%;
 }
 
-.plugins-view h2,
-.settings-view h2 {
-  margin-bottom: 1rem;
+.view-header {
+  margin-bottom: 24px;
 }
 
-.quick-add-btn {
+.view-header h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+
+.view-content {
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 24px;
+}
+
+/* 浮动操作按钮 */
+.fab {
   position: fixed;
-  right: 30px;
-  bottom: 30px;
+  right: 24px;
+  bottom: 24px;
   width: 56px;
   height: 56px;
-  font-size: 24px;
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.4);
+  border-radius: 28px;
+  border: none;
+  background: var(--focus-blue);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(74, 158, 255, 0.4);
+  transition: all 150ms ease-out;
+}
+
+.fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(74, 158, 255, 0.5);
+}
+
+.fab:active {
+  transform: scale(0.95);
 }
 </style>

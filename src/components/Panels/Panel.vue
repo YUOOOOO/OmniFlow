@@ -2,22 +2,34 @@
   <div
     class="panel"
     :style="panelStyle"
+    :class="{ focused: isFocused }"
     @mousedown="onPanelClick"
   >
     <!-- 面板头部 -->
     <div class="panel-header" @mousedown.stop="onDragStart">
-      <span class="panel-title">{{ title }}</span>
+      <div class="panel-title-wrapper">
+        <div class="panel-type-indicator" :style="{ background: panelColor }" />
+        <span class="panel-title">{{ title }}</span>
+      </div>
       <div class="panel-actions">
-        <button class="panel-btn" @click.stop="onMinimize">
-          {{ minimized ? '□' : '_' }}
+        <button class="panel-btn" @click.stop="onMinimize" :title="minimized ? '展开' : '最小化'">
+          <PhMinus v-if="!minimized" :size="14" weight="bold" />
+          <PhSquare v-else :size="14" weight="bold" />
         </button>
-        <button class="panel-btn" @click.stop="onClose">×</button>
+        <button class="panel-btn" @click.stop="onClose" title="关闭">
+          <PhX :size="14" weight="bold" />
+        </button>
       </div>
     </div>
 
     <!-- 面板内容 -->
     <div v-show="!minimized" class="panel-content">
-      <slot />
+      <slot>
+        <div class="panel-placeholder">
+          <PhTerminal :size="32" weight="duotone" class="placeholder-icon" />
+          <p class="placeholder-text">{{ type }} 面板内容</p>
+        </div>
+      </slot>
     </div>
 
     <!-- 调整大小手柄 -->
@@ -31,10 +43,18 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { 
+  Minus as PhMinus, 
+  Square as PhSquare, 
+  X as PhX,
+  Terminal as PhTerminal
+} from '@phosphor-icons/vue';
 import { usePanelStore } from '@/stores/panels';
+import type { PanelType } from '@/types/panel';
 
 const props = defineProps<{
   id: string;
+  type: PanelType;
   title: string;
   position: { x: number; y: number };
   size: { w: number; h: number };
@@ -51,6 +71,19 @@ const panelStyle = computed(() => ({
   height: props.minimized ? 'auto' : `${props.size.h}px`,
   zIndex: props.zIndex
 }));
+
+const isFocused = computed(() => panelStore.activePanel === props.id);
+
+const panelColor = computed(() => {
+  const colors: Record<PanelType, string> = {
+    terminal: 'var(--panel-terminal)',
+    editor: 'var(--panel-editor)',
+    browser: 'var(--panel-browser)',
+    chat: 'rgb(var(--agent-rgb))',
+    custom: 'var(--text-muted)'
+  };
+  return colors[props.type] || colors.custom;
+});
 
 function onPanelClick() {
   panelStore.setActivePanel(props.id);
@@ -122,27 +155,53 @@ function onClose() {
 <style scoped>
 .panel {
   position: absolute;
-  background: #2a2a2a;
-  border: 1px solid #444;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px var(--shadow-node);
+  transition: box-shadow 150ms ease-out, border-color 150ms ease-out;
 }
 
+.panel.focused {
+  border-color: var(--border-focus);
+  box-shadow: 0 2px 12px var(--shadow-node-focused);
+}
+
+/* 面板头部 */
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
-  background: #333;
+  padding: 10px 12px;
+  background: var(--surface-3);
+  border-bottom: 1px solid var(--border-subtle);
   cursor: move;
   user-select: none;
 }
 
+.panel-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-type-indicator {
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
 .panel-title {
-  font-size: 14px;
-  color: #fff;
+  font-size: 13px;
   font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .panel-actions {
@@ -155,26 +214,47 @@ function onClose() {
   height: 24px;
   border: none;
   background: transparent;
-  color: #aaa;
+  color: var(--text-muted);
   cursor: pointer;
   border-radius: 4px;
-  font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 150ms ease-out;
 }
 
 .panel-btn:hover {
-  background: #444;
-  color: #fff;
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
+/* 面板内容 */
 .panel-content {
-  padding: 12px;
+  padding: 16px;
   overflow: auto;
-  color: #fff;
+  color: var(--text-primary);
+  background: var(--surface-1);
 }
 
+.panel-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-muted);
+}
+
+.placeholder-icon {
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.placeholder-text {
+  font-size: 13px;
+}
+
+/* 调整大小手柄 */
 .resize-handle {
   position: absolute;
   right: 0;
@@ -184,14 +264,19 @@ function onClose() {
   cursor: nwse-resize;
 }
 
-.resize-handle::before {
+.resize-handle::after {
   content: '';
   position: absolute;
-  right: 2px;
-  bottom: 2px;
-  width: 10px;
-  height: 10px;
-  border-right: 2px solid #666;
-  border-bottom: 2px solid #666;
+  right: 4px;
+  bottom: 4px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--border-strong);
+  border-bottom: 2px solid var(--border-strong);
+  border-radius: 0 0 2px 0;
+}
+
+.panel.focused .resize-handle::after {
+  border-color: var(--border-focus);
 }
 </style>

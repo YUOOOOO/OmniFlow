@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================================================
+   CSS Variables - Design System (基于 Cate/Toonflow)
+   ============================================================================= */
+
+:root {
+  /* Surface (背景层次) */
+  --surface-0: #1d1c1a;
+  --surface-1: #232220;
+  --surface-2: #282724;
+  --surface-3: #2c2b28;
+  --surface-4: #322f2c;
+  --surface-5: #3a3733;
+  --surface-6: #423f3a;
+  --surface-hover: #2f2d29;
+
+  /* Canvas (画布) */
+  --canvas-bg: #161513;
+  --canvas-bg-alt: #1c1b19;
+  --grid-dot: rgba(255, 255, 255, 0.077);
+  --grid-line: rgba(255, 255, 255, 0.03);
+
+  /* Border (边框) */
+  --border-subtle: rgba(255, 255, 255, 0.035);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --border-focus: #4a9eff;
+
+  /* Text (文本) */
+  --text-primary: #e8e6e3;
+  --text-secondary: #a8a49e;
+  --text-muted: #78746e;
+  --text-inverse: #141311;
+
+  /* Accent (强调色) */
+  --focus-blue: #4a9eff;
+  --activity-green: #4dd964;
+  --activity-orange: #ff9f0a;
+
+  /* Panel Type Colors */
+  --panel-terminal: #4a9960;
+  --panel-browser: #4a7ab0;
+  --panel-editor: #b07440;
+  --panel-canvas: #8857b0;
+
+  /* Agent (AI 助手主题色) */
+  --agent-rgb: 74 158 255;
+  --agent-light-rgb: 147 197 255;
+
+  /* Shadow */
+  --shadow-node: rgba(0, 0, 0, 0.45);
+  --shadow-node-focused: rgba(74, 158, 255, 0.35);
+
+  /* Font */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+}
+
+/* =============================================================================
+   Base Styles
+   ============================================================================= */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background: var(--surface-0);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Focus styles */
+button:focus-visible,
+[role='button']:focus-visible,
+a[href]:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+input:not([type='checkbox'], [type='radio']):focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--surface-4);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--surface-5);
+}
+
+/* =============================================================================
+   Utility Classes
+   ============================================================================= */
+
+@layer utilities {
+  .text-primary {
+    color: var(--text-primary);
+  }
+  .text-secondary {
+    color: var(--text-secondary);
+  }
+  .text-muted {
+    color: var(--text-muted);
+  }
+  .text-inverse {
+    color: var(--text-inverse);
+  }
+
+  .bg-surface-0 {
+    background-color: var(--surface-0);
+  }
+  .bg-surface-1 {
+    background-color: var(--surface-1);
+  }
+  .bg-surface-2 {
+    background-color: var(--surface-2);
+  }
+  .bg-surface-3 {
+    background-color: var(--surface-3);
+  }
+
+  .border-subtle {
+    border-color: var(--border-subtle);
+  }
+  .border-strong {
+    border-color: var(--border-strong);
+  }
+  .border-focus {
+    border-color: var(--border-focus);
+  }
+}

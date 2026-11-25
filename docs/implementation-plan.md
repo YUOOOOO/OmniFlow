@@ -1,153 +1,149 @@
-# OmniFlow 实施计划
+# OmniFlow 重构计划
 
-基于 Vue 3 技术栈，借鉴 Cate 的设计思路
+基于 Cate 架构 + Toonflow UI 风格
 
-## 技术栈
+## 核心原则
 
-- Vue 3 + TypeScript
-- Electron
-- Vite
-- Pinia (状态管理)
-- Element Plus (UI 组件)
-- xterm.js (终端)
-- Monaco Editor (代码编辑，可选)
+1. **UI 风格**：完全参考 Toonflow/Cate 的设计（配色、字体、图标）
+2. **插件优先**：Terminal、Editor 等都是插件，不是内置组件
+3. **精致细节**：不是 Demo，要做成可用的产品
 
-## 架构设计
+## 架构分层
 
-### 核心模块
+### 核心层（Core）
+**不可插拔，内置功能：**
+- 画布系统（InfiniteCanvas）
+- 对话界面（ChatView）
+- 插件管理器（PluginManager）
+- Agent 服务（AgentService）
+- MCP 基础设施（MCPManager）
+- UI 框架（Sidebar、MenuBar、StatusBar）
 
+### 插件层（Plugins）
+**动态加载，可扩展：**
+- Terminal 插件
+- Editor 插件
+- Browser 插件
+- Notebook 插件
+- 协议插件（GitHub、Jira 等）
+
+## 重构步骤
+
+### Phase 1: 核心 UI 重构（今天）
+
+**任务：**
+1. ✅ 创建设计规范文档
+2. [ ] 安装 Tailwind CSS
+3. [ ] 安装 Phosphor Icons
+4. [ ] 创建全局样式（参考 Cate globals.css）
+5. [ ] 重写组件使用 Toonflow 风格：
+   - [ ] App.vue（侧边栏 + 主区域）
+   - [ ] ChatView.vue（对话界面）
+   - [ ] InfiniteCanvas.vue（画布）
+   - [ ] Panel.vue（面板框架）
+
+### Phase 2: 插件系统核心（明天）
+
+**任务：**
+1. [ ] 创建 PluginManager
+2. [ ] 实现插件加载器
+3. [ ] 定义插件 API
+4. [ ] 实现节点注册表
+5. [ ] 插件目录扫描
+
+### Phase 3: 第一个插件（后天）
+
+**任务：**
+1. [ ] 创建 Terminal 插件项目
+2. [ ] 集成 xterm.js
+3. [ ] 实现 TerminalNode 组件
+4. [ ] 插件打包和加载测试
+
+### Phase 4: Agent 集成（下周）
+
+**任务：**
+1. [ ] AgentService 实现
+2. [ ] AI API 集成
+3. [ ] 画布操作指令
+4. [ ] Function Calling
+
+### Phase 5: 协议插件（下周）
+
+**任务：**
+1. [ ] ProtocolManager
+2. [ ] GitHub 协议插件示例
+3. [ ] Agent 调用协议
+
+## 技术栈更新
+
+```json
+{
+  "dependencies": {
+    "vue": "^3.4.0",
+    "pinia": "^2.1.0",
+    "element-plus": "^2.5.0",
+    "@phosphor-icons/vue": "^2.1.0",
+    "@xterm/xterm": "^5.5.0"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0"
+  }
+}
 ```
-src/
-├── components/
-│   ├── Canvas/          # 画布系统
-│   ├── Panels/          # 面板系统（借鉴 Cate）
-│   ├── Chat/            # 对话界面
-│   └── Sidebar/         # 侧边栏
-├── composables/         # Vue 组合式函数
-│   ├── useDraggable.ts  # 拖拽逻辑
-│   ├── useCanvas.ts     # 画布逻辑
-│   └── useAgent.ts      # Agent 集成
-├── services/            # 服务层
-│   ├── agent.ts         # AI Agent
-│   ├── terminal.ts      # 终端服务
-│   └── workspace.ts     # 工作区管理
-├── stores/              # Pinia stores
-│   ├── canvas.ts        # 画布状态
-│   ├── panels.ts        # 面板状态
-│   └── chat.ts          # 对话状态
-├── types/               # TypeScript 类型
-│   ├── panel.ts
-│   ├── agent.ts
-│   └── plugin.ts
-└── plugins/             # 插件目录（运行时加载）
-```
 
-### 借鉴 Cate 的设计
+## UI 组件清单
 
-1. **面板系统**（panels/framework）
-   - 可拖拽
-   - 可停靠
-   - 可调整大小
-   - 布局持久化
+### 核心组件（Core）
+- [x] App.vue - 应用外壳
+- [x] ChatView.vue - 对话界面
+- [x] InfiniteCanvas.vue - 画布
+- [x] Panel.vue - 面板框架
+- [ ] Sidebar.vue - 侧边栏（需重写）
+- [ ] MenuBar.vue - 菜单栏（新建）
+- [ ] StatusBar.vue - 状态栏（新建）
 
-2. **画布系统**（panels/canvas）
-   - 无限缩放
-   - 平移
-   - 网格背景
+### 插件组件（Plugin Templates）
+- [ ] TerminalNode.vue - Terminal 插件示例
+- [ ] EditorNode.vue - Editor 插件示例
 
-3. **Agent 集成**（services/agents）
-   - Agent 状态管理
-   - 对话历史
-   - 流式响应
+## 配色应用
 
-4. **工作区管理**（workspace/）
-   - 状态持久化
-   - 自动保存
+**侧边栏：**
+- 背景：`--surface-1` (#232220)
+- 边框：`--border-subtle`
+- 激活项：`--focus-blue`
 
-## 实施步骤
+**画布：**
+- 背景：`--canvas-bg` (#161513)
+- 网格：`--grid-dot`
 
-### Phase 1: 核心框架（本周）
+**面板：**
+- 背景：`--surface-2` (#282724)
+- 边框：`--border-strong`
+- 阴影：`--shadow-node`
 
-**任务：**
-- [ ] 安装依赖（Pinia、xterm.js 等）
-- [ ] 创建目录结构
-- [ ] 设置 Pinia stores
-- [ ] 创建基础组件骨架
+**文本：**
+- 主要：`--text-primary` (#e8e6e3)
+- 次要：`--text-secondary` (#a8a49e)
+- 弱化：`--text-muted` (#78746e)
 
-### Phase 2: 面板系统（本周）
+## 关键区别
 
-**任务：**
-- [ ] 实现 Panel.vue 组件
-- [ ] 实现拖拽逻辑（useDraggable）
-- [ ] 实现 TerminalPanel 组件
-- [ ] 面板布局持久化
+### ❌ 之前的问题
+- 随便定义的暗黑风格
+- Terminal 作为内置组件
+- 简陋的 Demo UI
 
-### Phase 3: 画布系统（本周）
+### ✅ 现在的方向
+- 严格遵循 Toonflow 设计系统
+- Terminal 作为插件开发
+- 精致的产品级 UI
 
-**任务：**
-- [ ] 实现 InfiniteCanvas.vue
-- [ ] ��放、平移功能
-- [ ] 画布状态管理（Pinia）
-- [ ] 网格背景
+## 下一步行动
 
-### Phase 4: 对话界面（下周）
-
-**任务：**
-- [ ] ChatView.vue 组件
-- [ ] 对话历史显示
-- [ ] 输入框和发送
-- [ ] AI 响应渲染
-
-### Phase 5: Agent 集成（下周）
-
-**任务：**
-- [ ] Agent 服务封装
-- [ ] AI API 集成
-- [ ] 画布操作指令
-- [ ] Function Calling
-
-### Phase 6: 插件系统（后续）
-
-**任务：**
-- [ ] 插件加载器
-- [ ] 节点插件
-- [ ] 协议插件
-- [ ] 插件市场
-
-## 关键特性
-
-### 1. 对话优先界面
-
-- 默认显示对话界面
-- 通过对话创建画布和节点
-- 画布状态在对话中展示
-
-### 2. 混合 UI 模式
-
-- 外层：侧边栏、菜单栏、状态栏
-- 画布内：节点面板（可拖拽）
-- 悬浮：AI 助手对话框
-
-### 3. 插件扩展
-
-- 节点插件：自定义节点类型
-- 协议插件：外部服务集成
-- 技能插件：Agent 能力扩展
-
-### 4. MCP + Skills（内置）
-
-- MCP：文件系统、命令执行
-- Skills：代码生成、文本处理等
-
-## 开发规范
-
-- TypeScript 严格模式
-- 组件使用 `<script setup>` 语法
-- 样式使用 Tailwind CSS（可选）或 Element Plus 主题
-- Git 提交使用 Conventional Commits
-
-## 参考资源
-
-- Cate 源码：/d/YU/cate-reference
-- Toonflow：AI 漫剧工具
-- 设计文档：docs/plugin-system-design.md
+立即执行 Phase 1：
+1. 安装 Tailwind CSS 和 Phosphor Icons
+2. 创建全局样式
+3. 重写所有组件使用新设计系统

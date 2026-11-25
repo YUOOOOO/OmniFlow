@@ -22,19 +22,33 @@
 
     <!-- 画布控制器 -->
     <div class="canvas-controls">
-      <el-button size="small" @click="canvasStore.resetTransform">
-        重置视图
-      </el-button>
-      <el-button size="small" @click="canvasStore.toggleGrid">
-        {{ canvasStore.grid.enabled ? '隐藏' : '显示' }}网格
-      </el-button>
-      <span class="zoom-level">{{ Math.round(canvasStore.transform.zoom * 100) }}%</span>
+      <button class="control-btn" @click="canvasStore.resetTransform" title="重置视图">
+        <PhHouse :size="16" weight="duotone" />
+      </button>
+      <button class="control-btn" @click="canvasStore.toggleGrid" title="切换网格">
+        <PhGridFour :size="16" weight="duotone" />
+      </button>
+      <div class="zoom-display">
+        {{ Math.round(canvasStore.transform.zoom * 100) }}%
+      </div>
+    </div>
+
+    <!-- 空状态提示 -->
+    <div v-if="panelStore.panels.length === 0" class="empty-state">
+      <PhSquaresFour :size="64" weight="duotone" class="empty-icon" />
+      <h3>画布是空的</h3>
+      <p>点击右下角的 + 按钮添加面板</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { 
+  House as PhHouse, 
+  GridFour as PhGridFour,
+  SquaresFour as PhSquaresFour
+} from '@phosphor-icons/vue';
 import { useCanvasStore } from '@/stores/canvas';
 import { usePanelStore } from '@/stores/panels';
 import Panel from '@/components/Panels/Panel.vue';
@@ -94,7 +108,7 @@ function onPanStart(e: MouseEvent) {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: v-bind('canvasStore.background');
+  background: var(--canvas-bg);
   cursor: grab;
 }
 
@@ -106,39 +120,93 @@ function onPanStart(e: MouseEvent) {
   position: relative;
   width: 100%;
   height: 100%;
-  transition: transform 0.1s ease-out;
+  transition: transform 0.05s ease-out;
 }
 
+/* 网格背景（点状） */
 .canvas-grid {
   position: absolute;
   top: -5000px;
   left: -5000px;
   width: 10000px;
   height: 10000px;
-  background-image: 
-    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-image: radial-gradient(
+    circle,
+    var(--grid-dot) 1px,
+    transparent 1px
+  );
   background-size: 20px 20px;
   pointer-events: none;
 }
 
+/* 控制器 */
 .canvas-controls {
   position: absolute;
   bottom: 20px;
   right: 20px;
   display: flex;
-  gap: 8px;
   align-items: center;
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.6);
+  gap: 8px;
+  padding: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-.zoom-level {
-  color: #fff;
+.control-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 150ms ease-out;
+}
+
+.control-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.zoom-display {
   font-size: 12px;
-  min-width: 50px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  min-width: 45px;
   text-align: center;
+  padding: 0 4px;
+}
+
+/* 空状态 */
+.empty-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.empty-icon {
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.empty-state p {
+  font-size: 14px;
+  color: var(--text-muted);
 }
 </style>
