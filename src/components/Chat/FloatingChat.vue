@@ -20,81 +20,8 @@
         @pointerdown.stop="startInteraction($event, handle.edge)"
       />
 
-      <!-- 头部 -->
-      <div class="agent-header">
-        <div class="header-left">
-          <PhSparkle :size="20" weight="duotone" />
-          <span>OmniFlow Agent</span>
-        </div>
-        <div class="header-actions">
-          <button class="header-btn" @click="toggleDocked" :title="docked ? '取消停靠' : '停靠到右侧'">
-            <PhPushPin :size="16" :weight="docked ? 'fill' : 'regular'" />
-          </button>
-          <button class="header-btn" @click="clearChat" title="清除对话">
-            <PhTrash :size="16" />
-          </button>
-          <button class="header-btn" @click="toggleChat" title="关闭">
-            <PhX :size="16" />
-          </button>
-        </div>
-      </div>
-
-      <!-- 对话内容 -->
-      <div class="agent-content" ref="contentRef">
-        <!-- 欢迎消息 -->
-        <div v-if="!chatStore.hasMessages" class="welcome-msg">
-          <PhSparkle :size="32" weight="duotone" class="welcome-icon" />
-          <p>你好！我可以帮你：</p>
-          <ul>
-            <li>创建和管理画布</li>
-            <li>添加各种面板</li>
-            <li>配置 MCP Server</li>
-            <li>执行命令和操作</li>
-          </ul>
-        </div>
-
-        <!-- 消息列表 -->
-        <div
-          v-for="msg in chatStore.messages"
-          :key="msg.id"
-          class="message"
-          :class="`message-${msg.role}`"
-        >
-          <div class="message-bubble">{{ msg.content }}</div>
-        </div>
-
-        <!-- 思考中 -->
-        <div v-if="chatStore.isThinking" class="message message-assistant">
-          <div class="message-bubble">
-            <div class="typing-indicator">
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 输入区域 -->
-      <div class="agent-input">
-        <textarea
-          v-model="input"
-          class="input-field"
-          placeholder="告诉我你想做什么..."
-          rows="1"
-          :disabled="chatStore.isThinking"
-          @keydown.ctrl.enter="sendMessage"
-          @input="adjustHeight"
-          ref="inputRef"
-        />
-        <button
-          class="send-btn"
-          :disabled="!input.trim() || chatStore.isThinking"
-          @click="sendMessage"
-        >
-          <PhPaperPlaneTilt :size="18" weight="fill" />
-        </button>
-      </div>
+      <!-- Agent 面板 -->
+      <AgentPanel :active="isOpen" />
     </aside>
 
     <!-- 悬浮按钮 -->
@@ -111,24 +38,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch, onBeforeUnmount } from 'vue';
-import {
-  PhChats,
-  PhSparkle,
-  PhX,
-  PhTrash,
-  PhPaperPlaneTilt,
-  PhPushPin
-} from '@phosphor-icons/vue';
-import { useChatStore } from '@/stores/chat';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
+import { PhChats } from '@phosphor-icons/vue';
+import AgentPanel from '@/components/Agent/AgentPanel.vue';
+import { useAgentStore } from '@/stores/agent';
 
-const chatStore = useChatStore();
+const agentStore = useAgentStore();
 const isOpen = ref(false);
 const hasUnread = ref(false);
 const docked = ref(false);
-const input = ref('');
-const contentRef = ref<HTMLElement>();
-const inputRef = ref<HTMLTextAreaElement>();
 
 // 窗口尺寸和位置
 const preferredWidth = 420;
@@ -197,7 +115,6 @@ function toggleChat() {
   isOpen.value = !isOpen.value;
   if (isOpen.value) {
     hasUnread.value = false;
-    nextTick(() => scrollToBottom());
   }
 }
 
@@ -211,37 +128,6 @@ function toggleDocked() {
   
   // 保存状态
   localStorage.setItem('omniflow-agent-docked', JSON.stringify(docked.value));
-}
-
-function clearChat() {
-  chatStore.clearMessages();
-}
-
-async function sendMessage() {
-  if (!input.value.trim() || chatStore.isThinking) return;
-
-  await chatStore.sendMessage(input.value);
-  input.value = '';
-
-  if (inputRef.value) {
-    inputRef.value.style.height = 'auto';
-  }
-
-  scrollToBottom();
-}
-
-function adjustHeight(e: Event) {
-  const textarea = e.target as HTMLTextAreaElement;
-  textarea.style.height = 'auto';
-  textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
-}
-
-function scrollToBottom() {
-  nextTick(() => {
-    if (contentRef.value) {
-      contentRef.value.scrollTop = contentRef.value.scrollHeight;
-    }
-  });
 }
 
 function startMenuMove(event: PointerEvent) {
@@ -350,9 +236,8 @@ if (savedSize) {
 }
 
 // 监听新消息
-watch(() => chatStore.messages.length, () => {
+watch(() => agentStore.activeConversation?.messages.length, () => {
   if (!isOpen.value) hasUnread.value = true;
-  scrollToBottom();
 });
 
 window.addEventListener('resize', resizeViewport);
@@ -387,13 +272,8 @@ onBeforeUnmount(() => {
   box-shadow: none;
 }
 
-.floating-agent:not(.docked) .agent-header {
-  cursor: grab;
+.floating-agent.dragging {
   user-select: none;
-}
-
-.floating-agent.dragging .agent-header {
-  cursor: grabbing;
 }
 
 /* 调整大小手柄 */
@@ -430,209 +310,6 @@ onBeforeUnmount(() => {
 .resize-handle:hover {
   background: var(--focus-blue);
   opacity: 0.5;
-}
-
-/* 头部 */
-.agent-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--border-subtle);
-  flex-shrink: 0;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-primary);
-  font-weight: 500;
-}
-
-.header-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.header-btn {
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 150ms ease-out;
-}
-
-.header-btn:hover {
-  background: var(--surface-hover);
-  color: var(--text-primary);
-}
-
-/* 内容区域 */
-.agent-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-}
-
-/* 欢迎消息 */
-.welcome-msg {
-  text-align: center;
-  color: var(--text-secondary);
-  padding: 20px 0;
-}
-
-.welcome-icon {
-  color: rgb(var(--agent-rgb));
-  margin-bottom: 12px;
-}
-
-.welcome-msg p {
-  font-size: 14px;
-  margin-bottom: 12px;
-}
-
-.welcome-msg ul {
-  text-align: left;
-  font-size: 13px;
-  color: var(--text-muted);
-  line-height: 1.8;
-}
-
-/* 消息 */
-.message {
-  display: flex;
-  margin-bottom: 12px;
-}
-
-.message-user {
-  justify-content: flex-end;
-}
-
-.message-assistant {
-  justify-content: flex-start;
-}
-
-.message-bubble {
-  max-width: 75%;
-  padding: 10px 14px;
-  border-radius: 12px;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.message-user .message-bubble {
-  background: rgb(var(--agent-rgb));
-  color: white;
-  border-radius: 12px 12px 4px 12px;
-}
-
-.message-assistant .message-bubble {
-  background: var(--surface-2);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-primary);
-  border-radius: 12px 12px 12px 4px;
-}
-
-/* 输入中动画 */
-.typing-indicator {
-  display: flex;
-  gap: 4px;
-  padding: 2px 0;
-}
-
-.typing-indicator span {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-muted);
-  animation: typing 1.4s infinite;
-}
-
-.typing-indicator span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.typing-indicator span:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes typing {
-  0%, 60%, 100% {
-    transform: translateY(0);
-    opacity: 0.4;
-  }
-  30% {
-    transform: translateY(-8px);
-    opacity: 1;
-  }
-}
-
-/* 输入区域 */
-.agent-input {
-  display: flex;
-  gap: 8px;
-  padding: 12px;
-  background: var(--surface-2);
-  border-top: 1px solid var(--border-subtle);
-  align-items: flex-end;
-  flex-shrink: 0;
-}
-
-.input-field {
-  flex: 1;
-  background: var(--surface-0);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  padding: 10px 12px;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-family: inherit;
-  resize: none;
-  outline: none;
-  transition: border-color 150ms ease-out;
-  min-height: 36px;
-  max-height: 120px;
-}
-
-.input-field:focus {
-  border-color: var(--border-focus);
-}
-
-.input-field::placeholder {
-  color: var(--text-muted);
-}
-
-.send-btn {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  border: none;
-  background: rgb(var(--agent-rgb));
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 150ms ease-out;
-}
-
-.send-btn:hover:not(:disabled) {
-  background: rgb(var(--agent-light-rgb));
-  transform: translateY(-1px);
-}
-
-.send-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 /* 悬浮按钮 */

@@ -23,6 +23,7 @@
     "@vue-flow/core": "^1.48.2",
     "@xterm/xterm": "^5.5.0",
     "element-plus": "^2.5.0",
+    "marked": "^18.3.0",
     "pinia": "^2.1.0",
     "vue": "^3.4.0"
   },
