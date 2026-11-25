@@ -1,41 +1,28 @@
 <template>
   <div class="omniflow-app">
-    <!-- 侧边栏 -->
-    <aside class="sidebar">
-      <nav class="sidebar-nav">
+    <!-- 顶部标签栏 -->
+    <header class="top-tabs">
+      <nav class="tabs-nav">
         <button
-          v-for="item in navItems"
-          :key="item.id"
-          class="nav-item"
-          :class="{ active: currentView === item.id }"
-          @click="currentView = item.id"
+          v-for="tab in tabs"
+          :key="tab.id"
+          class="tab-item"
+          :class="{ active: currentView === tab.id }"
+          @click="currentView = tab.id"
         >
-          <component :is="item.icon" :size="20" weight="duotone" />
-          <span class="nav-label">{{ item.label }}</span>
+          <component :is="tab.icon" :size="18" weight="duotone" />
+          <span>{{ tab.label }}</span>
         </button>
       </nav>
-    </aside>
+    </header>
 
     <!-- 主内容区域 -->
-    <main class="main-area">
-      <!-- 画布视图（默认） -->
+    <main class="main-content">
+      <!-- 画布视图 -->
       <InfiniteCanvas v-if="currentView === 'canvas'" />
 
-      <!-- 插件视图 -->
-      <div v-else-if="currentView === 'plugins'" class="view-container">
-        <div class="view-header">
-          <h2>插件管理</h2>
-          <p class="text-secondary">管理和安装插件</p>
-        </div>
-        <div class="view-content">
-          <p class="text-muted">插件功能开发中...</p>
-        </div>
-      </div>
-
-      <!-- 设置视图 -->
-      <div v-else-if="currentView === 'settings'" class="settings-view">
-        <MCPManager />
-      </div>
+      <!-- 文件视图 -->
+      <FileExplorer v-else-if="currentView === 'files'" />
     </main>
 
     <!-- 画布快速添加按钮 -->
@@ -57,24 +44,22 @@
 import { ref } from 'vue';
 import { 
   PhSquaresFour, 
-  PhPlug, 
-  PhGear,
+  PhFiles,
   PhPlus
 } from '@phosphor-icons/vue';
 import InfiniteCanvas from '@/components/Canvas/InfiniteCanvas.vue';
-import MCPManager from '@/components/MCP/MCPManager.vue';
+import FileExplorer from '@/components/Files/FileExplorer.vue';
 import FloatingChat from '@/components/Chat/FloatingChat.vue';
 import { usePanelStore } from '@/stores/panels';
 
-type ViewType = 'canvas' | 'plugins' | 'settings';
+type ViewType = 'canvas' | 'files';
 
 const currentView = ref<ViewType>('canvas');
 const panelStore = usePanelStore();
 
-const navItems = [
+const tabs = [
   { id: 'canvas', icon: PhSquaresFour, label: '画布' },
-  { id: 'plugins', icon: PhPlug, label: '插件' },
-  { id: 'settings', icon: PhGear, label: '设置' }
+  { id: 'files', icon: PhFiles, label: '文件' }
 ];
 
 function addPanel() {
@@ -91,106 +76,70 @@ function addPanel() {
 <style scoped>
 .omniflow-app {
   display: flex;
+  flex-direction: column;
   width: 100vw;
   height: 100vh;
   background: var(--surface-0);
 }
 
-/* 侧边栏 */
-.sidebar {
-  width: 60px;
+/* 顶部标签栏 */
+.top-tabs {
+  height: 48px;
   background: var(--surface-1);
-  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
   display: flex;
-  flex-direction: column;
-}
-
-.sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  padding: 8px 0;
-  gap: 2px;
-}
-
-.nav-item {
-  display: flex;
-  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tabs-nav {
+  display: flex;
   gap: 4px;
-  padding: 12px 8px;
+  padding: 0 12px;
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
   border: none;
   background: transparent;
   color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
+  border-radius: 6px;
   transition: all 150ms ease-out;
   position: relative;
 }
 
-.nav-item::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 0;
-  background: var(--focus-blue);
-  border-radius: 0 2px 2px 0;
-  transition: height 150ms ease-out;
-}
-
-.nav-item:hover {
+.tab-item:hover {
   background: var(--surface-hover);
   color: var(--text-primary);
 }
 
-.nav-item.active {
+.tab-item.active {
+  background: var(--surface-3);
   color: var(--focus-blue);
 }
 
-.nav-item.active::before {
-  height: 24px;
-}
-
-.nav-label {
-  font-size: 11px;
-  font-weight: 500;
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--focus-blue);
 }
 
 /* 主内容区域 */
-.main-area {
+.main-content {
   flex: 1;
   position: relative;
   overflow: hidden;
-}
-
-.view-container {
-  padding: 32px;
-  overflow-y: auto;
-  height: 100%;
-}
-
-.view-header {
-  margin-bottom: 24px;
-}
-
-.view-header h2 {
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 4px;
-  color: var(--text-primary);
-}
-
-.view-content {
-  background: var(--surface-1);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  padding: 24px;
-}
-
-.settings-view {
-  height: 100%;
-  overflow-y: auto;
 }
 
 /* 浮动操作按钮 */
