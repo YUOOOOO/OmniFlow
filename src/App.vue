@@ -18,11 +18,8 @@
 
     <!-- 主内容区域 -->
     <main class="main-area">
-      <!-- 对话视图 -->
-      <ChatView v-if="currentView === 'chat'" />
-
-      <!-- 画布视图 -->
-      <InfiniteCanvas v-else-if="currentView === 'canvas'" />
+      <!-- 画布视图（默认） -->
+      <InfiniteCanvas v-if="currentView === 'canvas'" />
 
       <!-- 插件视图 -->
       <div v-else-if="currentView === 'plugins'" class="view-container">
@@ -50,30 +47,31 @@
     >
       <PhPlus :size="24" weight="bold" />
     </button>
+
+    <!-- 悬浮对话框 -->
+    <FloatingChat />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
 import { 
-  PhChatCircle, 
   PhSquaresFour, 
   PhPlug, 
   PhGear,
   PhPlus
 } from '@phosphor-icons/vue';
-import ChatView from '@/components/Chat/ChatView.vue';
 import InfiniteCanvas from '@/components/Canvas/InfiniteCanvas.vue';
 import MCPManager from '@/components/MCP/MCPManager.vue';
+import FloatingChat from '@/components/Chat/FloatingChat.vue';
 import { usePanelStore } from '@/stores/panels';
 
-type ViewType = 'chat' | 'canvas' | 'plugins' | 'settings';
+type ViewType = 'canvas' | 'plugins' | 'settings';
 
-const currentView = ref<ViewType>('chat');
+const currentView = ref<ViewType>('canvas');
 const panelStore = usePanelStore();
 
 const navItems = [
-  { id: 'chat', icon: PhChatCircle, label: '对话' },
   { id: 'canvas', icon: PhSquaresFour, label: '画布' },
   { id: 'plugins', icon: PhPlug, label: '插件' },
   { id: 'settings', icon: PhGear, label: '设置' }
